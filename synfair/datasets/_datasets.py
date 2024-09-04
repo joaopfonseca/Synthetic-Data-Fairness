@@ -11,6 +11,7 @@ URL = "https://zenodo.org/records/13385610/files/"
 
 class SynFairDatasets(Datasets):
     """Datasets used to do research on fairness in synthetic data generation."""
+
     def download(self):
         """Download the datasets."""
         # Download the data
@@ -23,11 +24,14 @@ class SynFairDatasets(Datasets):
         # Download the metadata
         self.metadata_ = {}
         for name, _ in self.content_:
-            self.metadata_[name] = json.loads(
+            meta = json.loads(
                 requests.get(
-                    urljoin(URL, name.lower().replace(" ", "_")+"_dtypes.json")
+                    urljoin(URL, name.lower().replace(" ", "_") + "_dtypes.json")
                 ).text
             )
+            meta["columns"]["target"] = meta["columns"]["Label"]
+            meta["columns"].pop("Label", None)
+            self.metadata_[name] = meta
 
         # Download the constraints
         self.constraints_ = {}
@@ -46,11 +50,13 @@ class SynFairDatasets(Datasets):
 
         data_types = self.metadata_
         non_metric = {
-            name: len([
-                col_name
-                for col_name, meta in data_types[name]["columns"].items()
-                if meta["sdtype"] != "numerical"
-            ])
+            name: len(
+                [
+                    col_name
+                    for col_name, meta in data_types[name]["columns"].items()
+                    if meta["sdtype"] != "numerical"
+                ]
+            )
             for name in data_types
         }
         summary["Non-metric"] = non_metric

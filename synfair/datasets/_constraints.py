@@ -58,37 +58,36 @@ constraints = {
     ],
     "TRAVELTIME": [
         {
-            'constraint_class': 'ScalarInequality',
-            'constraint_parameters': {
-                'column_name': 'AGEP',
-                'relation': '>=',
-                'value': 16
-            }
+            "constraint_class": "ScalarInequality",
+            "constraint_parameters": {
+                "column_name": "AGEP",
+                "relation": ">=",
+                "value": 16,
+            },
         },
         {
-            'constraint_class': 'ScalarInequality',
-            'constraint_parameters': {
-                'column_name': 'AGEP',
-                'relation': '<=',
-                'value': 95
-            }
-        },
-
-        {
-            'constraint_class': 'ScalarInequality',
-            'constraint_parameters': {
-                'column_name': 'POVPIP',
-                'relation': '>=',
-                'value': 0
-            }
+            "constraint_class": "ScalarInequality",
+            "constraint_parameters": {
+                "column_name": "AGEP",
+                "relation": "<=",
+                "value": 95,
+            },
         },
         {
-            'constraint_class': 'ScalarInequality',
-            'constraint_parameters': {
-                'column_name': 'POVPIP',
-                'relation': '<=',
-                'value': 501
-            }
+            "constraint_class": "ScalarInequality",
+            "constraint_parameters": {
+                "column_name": "POVPIP",
+                "relation": ">=",
+                "value": 0,
+            },
+        },
+        {
+            "constraint_class": "ScalarInequality",
+            "constraint_parameters": {
+                "column_name": "POVPIP",
+                "relation": "<=",
+                "value": 501,
+            },
         },
     ],
 }

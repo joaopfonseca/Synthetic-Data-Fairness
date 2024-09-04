@@ -13,7 +13,7 @@ SDV_MIN_VERSION = "1.0.0"
 
 # The values are (version_spec, comma separated tags)
 dependent_packages = {
-    "ml-research": (ML_RESEARCH_MIN_VERSION, "0.5.1"),
+    "ml-research": (ML_RESEARCH_MIN_VERSION, "install"),
     "pandas": (PANDAS_MIN_VERSION, "install"),
     # "numpy": (NUMPY_MIN_VERSION, "install"),
     # "scikit-learn": (SKLEARN_MIN_VERSION, "install"),
