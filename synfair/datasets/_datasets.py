@@ -29,8 +29,10 @@ class SynFairDatasets(Datasets):
                     urljoin(URL, name.lower().replace(" ", "_") + "_dtypes.json")
                 ).text
             )
-            meta["columns"]["target"] = meta["columns"]["Label"]
-            meta["columns"].pop("Label", None)
+            if "Label" in meta["columns"]:
+                meta["columns"]["target"] = meta["columns"]["Label"]
+                meta["columns"].pop("Label")
+
             self.metadata_[name] = meta
 
         # Download the constraints
