@@ -96,7 +96,17 @@ class SynFairDatasets(Datasets):
         data.rename(columns={"cardio": "target"}, inplace=True)
 
         # Drop tuples with invalid values
-        data = data[data["ap_hi"] > data["ap_lo"]]
+        data = data[
+            (data["height"] > 100)
+            & (data["height"] < 250)
+            & (data["weight"] > 30)
+            & (data["weight"] < 200)
+            & (data["ap_hi"] > 60)
+            & (data["ap_hi"] < 300)
+            & (data["ap_lo"] > 30)
+            & (data["ap_lo"] < 150)
+            & (data["ap_hi"] > data["ap_lo"])
+        ]
         return data
 
     def fetch_credit(self):
@@ -109,6 +119,18 @@ class SynFairDatasets(Datasets):
         data.drop(columns=["Unnamed: 0"], inplace=True)
         data.rename(columns={"SeriousDlqin2yrs": "target"}, inplace=True)
         data.dropna(inplace=True)
+        data = data[
+            (data["RevolvingUtilizationOfUnsecuredLines"] < 1.7)
+            & (data["age"] >= 18)
+            & (data["NumberOfTime30-59DaysPastDueNotWorse"] < 20)
+            # & (data["DebtRatio"] < 10)  # problem with unemployed people
+            & (data["MonthlyIncome"] < 40000)
+            & (data["NumberOfOpenCreditLinesAndLoans"] <= 40)
+            & (data["NumberOfTimes90DaysLate"] < 20)
+            & (data["NumberRealEstateLoansOrLines"] < 20)
+            & (data["NumberOfTime60-89DaysPastDueNotWorse"] < 10)
+            & (data["NumberOfDependents"] <= 10)
+        ]
         return data
 
     def fetch_traveltime(self):
