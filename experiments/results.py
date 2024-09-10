@@ -122,7 +122,9 @@ for dataset_name in DATASET_NAMES:
     constraints = dict(objs["CONSTRAINTS"])[dataset_name]
 
     config_path = join(
-        dirname(__file__), dataset_name.lower().replace(" ", "_") + "_config.yml"
+        dirname(__file__),
+        "virny_data_configs",
+        dataset_name.lower().replace(" ", "_") + "_config.yml"
     )
     config = create_config_obj(config_yaml_path=config_path)
 

@@ -33,6 +33,9 @@ class SynFairDatasets(Datasets):
                 meta["columns"]["target"] = meta["columns"]["Label"]
                 meta["columns"].pop("Label")
 
+            if name == "CREDIT":
+                meta["columns"]["age>60"] = {"sdtype": "categorical"}
+
             self.metadata_[name] = meta
 
         # Download the constraints
@@ -119,6 +122,7 @@ class SynFairDatasets(Datasets):
         data.drop(columns=["Unnamed: 0"], inplace=True)
         data.rename(columns={"SeriousDlqin2yrs": "target"}, inplace=True)
         data.dropna(inplace=True)
+        data["age>60"] = (data["age"] > 60).astype(int)
         data = data[
             (data["RevolvingUtilizationOfUnsecuredLines"] < 1.7)
             & (data["age"] >= 18)

@@ -11,22 +11,38 @@ def is_valid_duration(column_names, data):
     return data[duration] / 12 + data[age] < 80
 
 
-# def transform(column_names, data):
-#     duration = column_names[0]
-#     age = column_names[1]
-#
-#     data[duration] = data[duration].mask(
-#         data[duration] / 12 + data[age] < 80, 80 - data[age] * 12
-#     )
-#
-#     return data
+def is_above_60(column_names, data):
+    """Applicable for the Credit dataset."""
+    # Age in years
+    age = column_names[0]
+    age_dummy = column_names[1]
+
+    return (data[age] > 60) == data[age_dummy]
+
+
+def is_above_60_transform(column_names, data):
+    """Applicable for the Credit dataset."""
+    # Age in years
+    age = column_names[0]
+    age_dummy = column_names[1]
+
+    data[age_dummy] = (data[age] > 60).astype(int)
+    return data
+
 
 IfLongDuration = create_custom_constraint_class(
     is_valid_fn=is_valid_duration,
 )
 
+IsAbove60 = create_custom_constraint_class(
+    is_valid_fn=is_above_60,
+    transform_fn=is_above_60_transform,
+    reverse_transform_fn=is_above_60_transform,
+)
+
 custom_constraints_list = [
     "IfLongDuration",
+    "IsAbove60",
 ]
 
 constraints = {
@@ -215,6 +231,10 @@ constraints = {
         },
     ],
     "CREDIT": [
+        {
+            "constraint_class": "IsAbove60",
+            "constraint_parameters": {"column_names": ["age", "age>60"]},
+        },
         {
             "constraint_class": "Inequality",
             "constraint_parameters": {
