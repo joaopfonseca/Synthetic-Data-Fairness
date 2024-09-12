@@ -50,11 +50,11 @@ class SDVGenerator(BaseSampler):
         self.constraints_ = [] if self.constraints is None else self.constraints
 
         # Check metadata
+        metadata = SingleTableMetadata()
         if self.metadata is None:
-            metadata = SingleTableMetadata()
             metadata.detect_from_dataframe(X)
         else:
-            metadata = self.metadata
+            metadata = metadata.load_from_dict(self.metadata)
 
         self.metadata_ = metadata
         self.model_ = self.model(self.metadata_, **self.model_params)

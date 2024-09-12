@@ -70,37 +70,19 @@ constraints = {
         {
             "constraint_class": "ScalarInequality",
             "constraint_parameters": {
-                # Installment rate in percentage of disposable income
-                "column_name": "Attribute8",
+                # Credit amount
+                "column_name": "Attribute5",
                 "relation": ">=",
-                "value": 1,
+                "value": 250,
             },
         },
         {
             "constraint_class": "ScalarInequality",
             "constraint_parameters": {
-                # Installment rate in percentage of disposable income
-                "column_name": "Attribute8",
+                # Credit amount
+                "column_name": "Attribute5",
                 "relation": "<=",
-                "value": 4,
-            },
-        },
-        {
-            "constraint_class": "ScalarInequality",
-            "constraint_parameters": {
-                # Present residence since
-                "column_name": "Attribute11",
-                "relation": ">=",
-                "value": 1,
-            },
-        },
-        {
-            "constraint_class": "ScalarInequality",
-            "constraint_parameters": {
-                # Present residence since
-                "column_name": "Attribute11",
-                "relation": "<=",
-                "value": 4,
+                "value": 18500,
             },
         },
         {
