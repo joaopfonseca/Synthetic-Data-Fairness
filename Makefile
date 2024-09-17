@@ -29,6 +29,7 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 	find . -type d -name "lightning_logs" -exec rm -rf {} +
+	find . -type d -name ".jukit" -exec rm -rf {} +
 	rm -rf *.egg-info
 	rm -rf dist
 	rm -rf build
