@@ -15,7 +15,9 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold
 from lightgbm import LGBMClassifier
-from sdv.single_table import GaussianCopulaSynthesizer
+from imblearn.over_sampling import SMOTENC
+from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer
+from mlresearch.synthetic_data import GeometricSMOTE
 from mlresearch.utils import check_pipelines
 from mlresearch.metrics import get_scorer
 from mlresearch.model_selection import ModelSearchCV
@@ -28,7 +30,7 @@ from virny.user_interfaces.multiple_models_api import compute_metrics_with_confi
 
 # Own objects
 from synfair.datasets import SynFairDatasets
-from synfair.synthetic_data import SDVGenerator
+from synfair.synthetic_data import SDVGenerator, ImbLearnGenerator
 
 DATASET_NAMES = [
     # "GERMAN CREDIT",
@@ -51,14 +53,38 @@ CONFIG = {
             "GC",
             SDVGenerator(model=GaussianCopulaSynthesizer),
             {
-            #     "model__default_distribution": [
-            #         "norm",
-            #         "beta",
-            #         "truncnorm",
-            #         "uniform",
-            #         "gamma",
-            #         "gaussian_kde",
-            #     ]
+                "model__default_distribution": [
+                    "norm",
+                    "beta",
+                    "truncnorm",
+                    "uniform",
+                    "gamma",
+                    # "gaussian_kde",  # Raising memory issues
+                ]
+            },
+        ),
+        (
+            "TVAE",
+            SDVGenerator(model=TVAESynthesizer),
+            {"model__epochs": [300, 600, 900]},
+        ),
+        (
+            "LIN",
+            ImbLearnGenerator(model=SMOTENC),
+            {
+
+                "model__k_neighbors": [3, 5],
+            },
+        ),
+        (
+            "GEOM",
+            ImbLearnGenerator(model=GeometricSMOTE),
+            {
+
+                "model__k_neighbors": [3, 5],
+                "model__selection_strategy": ["combined", "minority", "majority"],
+                "model__truncation_factor": [-1.0, -0.5, 0.0, 0.5, 1.0],
+                "model__deformation_factor": [0.0, 0.25, 0.5, 0.75, 1.0],
             },
         ),
     ],
@@ -73,26 +99,26 @@ CONFIG = {
         )
     ],
     "CLASSIFIERS": [
-        # ("CONSTANT", DummyClassifier(strategy="prior"), {}),
-        # (
-        #     "LR",
-        #     LogisticRegression(max_iter=10000),
-        #     {"penalty": ["none", "l1", "l2"], "solver": ["saga"]},
-        # ),
+        ("CONSTANT", DummyClassifier(strategy="prior"), {}),
+        (
+            "LR",
+            LogisticRegression(max_iter=10000),
+            {"penalty": ["none", "l1", "l2"], "solver": ["saga"]},
+        ),
         ("KNN", KNeighborsClassifier(), {"n_neighbors": [3, 6, 9, 12]}),
-        # (
-        #     "MLP",
-        #     MLPClassifier(),
-        #     {
-        #         "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25)],
-        #         "alpha": [0.0001, 0.001, 0.01],
-        #     },
-        # ),
-        # (
-        #     "DT",
-        #     DecisionTreeClassifier(),
-        #     {"criterion": ["gini", "entropy"], "max_depth": np.arange(5, 25, step=5)},
-        # ),
+        (
+            "MLP",
+            MLPClassifier(),
+            {
+                "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25)],
+                "alpha": [0.0001, 0.001, 0.01],
+            },
+        ),
+        (
+            "DT",
+            DecisionTreeClassifier(),
+            {"criterion": ["gini", "entropy"], "max_depth": np.arange(5, 25, step=5)},
+        ),
         # (
         #     "LGBM",
         #     LGBMClassifier(verbose=-1),
@@ -109,13 +135,13 @@ CONFIG = {
             "RF",
             RandomForestClassifier(),
             {
-                # "criterion": ["gini", "entropy"],
+                "criterion": ["gini", "entropy"],
                 "n_estimators": [100, 250, 500, 750],
-                # "max_depth": np.arange(5, 20, step=4),
-                # "min_samples_split": np.arange(2, 11, step=2),
-                # "min_samples_leaf": np.arange(1, 11, step=2),
-                # "max_features": ["sqrt", "log2"],
-                # "bootstrap": [True, False],
+                "max_depth": np.arange(5, 20, step=4),
+                "min_samples_split": np.arange(2, 11, step=2),
+                "min_samples_leaf": np.arange(1, 11, step=2),
+                "max_features": ["sqrt", "log2"],
+                "bootstrap": [True, False],
             },
         ),
     ],
