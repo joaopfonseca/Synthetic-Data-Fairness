@@ -1,5 +1,5 @@
 # Base
-from os.path import join, dirname
+from os.path import join, dirname, isfile
 import numpy as np
 import pandas as pd
 
@@ -31,9 +31,9 @@ from synfair.datasets import SynFairDatasets
 from synfair.synthetic_data import SDVGenerator
 
 DATASET_NAMES = [
-    "GERMAN CREDIT",
-    "CARDIO",
-    "CREDIT",
+    # "GERMAN CREDIT",
+    # "CARDIO",
+    # "CREDIT",
     "TRAVELTIME",
 ]
 RESULTS_PATH = join(dirname(__file__), "results")
@@ -123,11 +123,11 @@ CONFIG = {
         "accuracy": get_scorer("accuracy"),
         "f1_macro": get_scorer("f1_macro"),
     },
-    "N_SPLITS": 3, # 5
-    "N_RUNS": 1, # 3
+    "N_SPLITS": 3,  # 5
+    "N_RUNS": 1,  # 3
     "VIRNY_TEST_SET_FRACTION": 0.2,
     "RANDOM_STATE": 42,
-    "N_JOBS": -1,
+    "N_JOBS": 4  # -1,
 }
 
 # Run experiments for each dataset
@@ -236,61 +236,54 @@ for dataset_name in DATASET_NAMES:
                 )
     params += const_params
 
-    # Run parameter tuning
-    experiment = ModelSearchCV(
-        estimators=pipelines,
-        param_grids=params,
-        scoring=CONFIG["SCORING"],
-        n_jobs=CONFIG["N_JOBS"],
-        cv=StratifiedKFold(
-            n_splits=CONFIG["N_SPLITS"],
-            shuffle=True,
-            random_state=CONFIG["RANDOM_STATE"],
-        ),
-        verbose=1,
-        return_train_score=True,
-        refit=False,
-    ).fit(df.drop(columns=["target"]), df["target"])
+    # Check if results already exist
+    filename = join(RESULTS_PATH, f"ModelSearchCV_results_{dataset_name}.pkl")
+    if not isfile(filename):
+        # Run parameter tuning
+        experiment = ModelSearchCV(
+            estimators=pipelines,
+            param_grids=params,
+            scoring=CONFIG["SCORING"],
+            n_jobs=CONFIG["N_JOBS"],
+            cv=StratifiedKFold(
+                n_splits=CONFIG["N_SPLITS"],
+                shuffle=True,
+                random_state=CONFIG["RANDOM_STATE"],
+            ),
+            verbose=1,
+            return_train_score=True,
+            refit=False,
+        ).fit(df.drop(columns=["target"]), df["target"])
 
-    # Save results
-    pd.DataFrame(experiment.cv_results_).to_pickle(
-        join(RESULTS_PATH, f"ModelSearchCV_results_{dataset_name}.pkl")
-    )
+        # Save results
+        pd.DataFrame(experiment.cv_results_).to_pickle(
+            filename
+        )
+
+    # Load results
+    # results = pd.read_pickle(filename)
+    # results = (
+    #     results[
+    #         ["param_est_name", "params", "mean_test_f1_macro"]
+    #     ]
+    #     .groupby("param_est_name")
+    #     .apply(
+    #         lambda df: df.loc[df["mean_test_f1_macro"].idxmax()],
+    #         include_groups=False
+    #     )
+    # )
+    # opt_param_dict = results["params"].to_dict()
 
     # models_config = {}
-    # for param in params:
-    #     est_name = param.pop("est_name")[0]
+    # for param in opt_param_dict.values():
+    #     est_name = param.pop("est_name")
     #     clf = clone(dict(pipelines)[est_name])
-    #     param = {"__".join(k.split("__")[1:]): v[0] for k, v in param.items()}
-
-    #     param_str = (
-    #         str(param)
-    #         .replace("'", "")
-    #         .replace("{", "")
-    #         .replace("}", "")
-    #         .replace(" ", "")
-    #     )
+    #     param = {"__".join(k.split("__")[1:]): v for k, v in param.items()}
 
     #     clf.set_params(**param)
-    #     est_name_final = est_name.replace("|PREP", "")
-    #     models_config[f"{est_name_final}__{param_str}"] = clf
+    #     models_config[est_name] = clf
 
-    #     # Add version with constraints (if applicable)
-    #     clf = clone(dict(pipelines)[est_name])
-    #     param_names = list(clf.get_params().keys())
-    #     if not est_name.startswith("NONE"):
-    #         constraint_param_loc = [
-    #             p.split("__")[-1] == "constraints" for p in param_names
-    #         ]
-    #         if True in constraint_param_loc:
-    #             constraint_param = param_names[constraint_param_loc.index(True)]
-    #             param[constraint_param] = constraints
-
-    #             clf.set_params(**param)
-    #             est_name_final = "CONST_" + est_name.replace("|PREP", "")
-    #             models_config[f"{est_name_final}__{param_str}"] = clf
-
-    # Set up experiment
+    # # Set up fairness analysis
     # metrics_dct = compute_metrics_with_config(
     #     base_flow_dataset,
     #     config,

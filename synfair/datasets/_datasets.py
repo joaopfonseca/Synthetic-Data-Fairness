@@ -6,7 +6,7 @@ from mlresearch.datasets.base import Datasets
 
 from ._constraints import constraints
 
-URL = "https://zenodo.org/records/13385610/files/"
+URL = "https://zenodo.org/records/13772491/files/"
 
 
 class SynFairDatasets(Datasets):
@@ -134,6 +134,10 @@ class SynFairDatasets(Datasets):
             & (data["NumberRealEstateLoansOrLines"] < 20)
             & (data["NumberOfTime60-89DaysPastDueNotWorse"] < 10)
             & (data["NumberOfDependents"] <= 10)
+        ]
+        data = data[
+            data["NumberRealEstateLoansOrLines"]
+            < data["NumberOfOpenCreditLinesAndLoans"]
         ]
         return data
 
