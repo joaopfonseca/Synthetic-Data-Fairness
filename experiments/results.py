@@ -20,7 +20,7 @@ from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer
 from mlresearch.synthetic_data import GeometricSMOTE
 from mlresearch.utils import check_pipelines
 from mlresearch.metrics import get_scorer
-from mlresearch.model_selection import ModelSearchCV
+from mlresearch.model_selection import HalvingModelSearchCV
 
 # Experimental design
 from virny.datasets.base import BaseDataLoader
@@ -105,19 +105,19 @@ CONFIG = {
             LogisticRegression(max_iter=10000),
             {"penalty": ["none", "l1", "l2"], "solver": ["saga"]},
         ),
-        ("KNN", KNeighborsClassifier(), {"n_neighbors": [3, 6, 9, 12]}),
+        ("KNN", KNeighborsClassifier(), {"n_neighbors": [3, 6, 9, 12, 15]}),
         (
             "MLP",
             MLPClassifier(),
             {
-                "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25)],
+                "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25), (10, 10)],
                 "alpha": [0.0001, 0.001, 0.01],
             },
         ),
         (
             "DT",
             DecisionTreeClassifier(),
-            {"criterion": ["gini", "entropy"], "max_depth": np.arange(5, 25, step=5)},
+            {"criterion": ["gini", "entropy"], "max_depth": np.arange(5, 20, step=5)},
         ),
         # (
         #     "LGBM",
@@ -136,12 +136,12 @@ CONFIG = {
             RandomForestClassifier(),
             {
                 "criterion": ["gini", "entropy"],
-                "n_estimators": [100, 250, 500, 750],
-                "max_depth": np.arange(5, 20, step=4),
-                "min_samples_split": np.arange(2, 11, step=2),
-                "min_samples_leaf": np.arange(1, 11, step=2),
+                "n_estimators": [100, 250, 500],
+                "max_depth": np.arange(5, 20, step=5),
+                # "min_samples_split": np.arange(2, 11, step=3),
+                # "min_samples_leaf": np.arange(2, 11, step=3),
                 "max_features": ["sqrt", "log2"],
-                "bootstrap": [True, False],
+                # "bootstrap": [True, False],
             },
         ),
     ],
@@ -149,7 +149,7 @@ CONFIG = {
         "accuracy": get_scorer("accuracy"),
         "f1_macro": get_scorer("f1_macro"),
     },
-    "N_SPLITS": 3,  # 5
+    "N_SPLITS": 5,
     "N_RUNS": 1,  # 3
     "VIRNY_TEST_SET_FRACTION": 0.2,
     "RANDOM_STATE": 42,
@@ -195,7 +195,7 @@ for dataset_name in DATASET_NAMES:
         column_transformer=FunctionTransformer(),
         sensitive_attributes_dct=config.sensitive_attributes_dct,
         test_set_fraction=CONFIG["VIRNY_TEST_SET_FRACTION"],
-        dataset_split_seed=CONFIG["N_RUNS"],
+        dataset_split_seed=CONFIG["RANDOM_STATE"],
     )
 
     # Set up models
@@ -266,9 +266,10 @@ for dataset_name in DATASET_NAMES:
     filename = join(RESULTS_PATH, f"ModelSearchCV_results_{dataset_name}.pkl")
     if not isfile(filename):
         # Run parameter tuning
-        experiment = ModelSearchCV(
+        experiment = HalvingModelSearchCV(
             estimators=pipelines,
             param_grids=params,
+            factor=2,
             scoring=CONFIG["SCORING"],
             n_jobs=CONFIG["N_JOBS"],
             cv=StratifiedKFold(
@@ -316,7 +317,3 @@ for dataset_name in DATASET_NAMES:
     #     models_config,
     #     RESULTS_PATH,
     # )
-
-    # NOTE:
-    # - n_rows: same as original dataset
-    # - Add more generators
