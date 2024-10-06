@@ -30,11 +30,11 @@ class ImbLearnGenerator(BaseSampler):
             self.n_rows_ = self.n_rows
 
         # Check categorical features
-        self.categorical_features_ = np.array([
+        self.categorical_features_ = [
             sdtype_dict["sdtype"] == "categorical"
             for col, sdtype_dict in self.metadata["columns"].items()
             if col != "target"
-        ])
+        ]
 
         # Check sampling strategy
         self._counts = Counter(y)
