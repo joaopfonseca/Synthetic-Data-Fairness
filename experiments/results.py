@@ -14,12 +14,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold
-from lightgbm import LGBMClassifier
+# from lightgbm import LGBMClassifier
 from imblearn.over_sampling import SMOTENC
 from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer
 from mlresearch.synthetic_data import GeometricSMOTE
 from mlresearch.utils import check_pipelines
-from mlresearch.metrics import get_scorer
+# from mlresearch.metrics import get_scorer
 from mlresearch.model_selection import HalvingModelSearchCV
 
 # Experimental design
@@ -94,6 +94,7 @@ CONFIG = {
             ColumnTransformer(
                 transformers=None,
                 remainder=StandardScaler(),
+                force_int_remainder_cols=False,
             ),
             {},
         )
@@ -103,12 +104,12 @@ CONFIG = {
         (
             "LR",
             LogisticRegression(max_iter=10000),
-            {"penalty": ["none", "l1", "l2"], "solver": ["saga"]},
+            {"penalty": [None, "l1", "l2"], "solver": ["saga"]},
         ),
         ("KNN", KNeighborsClassifier(), {"n_neighbors": [3, 6, 9, 12, 15]}),
         (
             "MLP",
-            MLPClassifier(),
+            MLPClassifier(max_iter=10000),
             {
                 "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25), (10, 10)],
                 "alpha": [0.0001, 0.001, 0.01],
@@ -145,10 +146,7 @@ CONFIG = {
             },
         ),
     ],
-    "SCORING": {
-        "accuracy": get_scorer("accuracy"),
-        "f1_macro": get_scorer("f1_macro"),
-    },
+    "SCORING": "f1_macro",
     "N_SPLITS": 5,
     "N_RUNS": 1,  # 3
     "VIRNY_TEST_SET_FRACTION": 0.2,
@@ -263,7 +261,7 @@ for dataset_name in DATASET_NAMES:
     params += const_params
 
     # Check if results already exist
-    filename = join(RESULTS_PATH, f"ModelSearchCV_results_{dataset_name}.pkl")
+    filename = join(RESULTS_PATH, f"param_tuning_{dataset_name}.pkl")
     if not isfile(filename):
         # Run parameter tuning
         experiment = HalvingModelSearchCV(
