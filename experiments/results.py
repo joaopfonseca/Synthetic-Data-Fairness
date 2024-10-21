@@ -283,32 +283,32 @@ for dataset_name in DATASET_NAMES:
         )
 
     # Load results
-    # results = pd.read_pickle(filename)
-    # results = (
-    #     results[
-    #         ["param_est_name", "params", "mean_test_f1_macro"]
-    #     ]
-    #     .groupby("param_est_name")
-    #     .apply(
-    #         lambda df: df.loc[df["mean_test_f1_macro"].idxmax()],
-    #         include_groups=False
-    #     )
-    # )
-    # opt_param_dict = results["params"].to_dict()
+    results = pd.read_pickle(filename)
+    results = (
+        results[
+            ["param_est_name", "params", "mean_test_score"]
+        ]
+        .groupby("param_est_name")
+        .apply(
+            lambda df: df.loc[df["mean_test_score"].idxmax()],
+            # include_groups=False
+        )
+    )
+    opt_param_dict = results["params"].to_dict()
 
-    # models_config = {}
-    # for param in opt_param_dict.values():
-    #     est_name = param.pop("est_name")
-    #     clf = clone(dict(pipelines)[est_name])
-    #     param = {"__".join(k.split("__")[1:]): v for k, v in param.items()}
+    models_config = {}
+    for param in opt_param_dict.values():
+        est_name = param.pop("est_name")
+        clf = clone(dict(pipelines)[est_name])
+        param = {"__".join(k.split("__")[1:]): v for k, v in param.items()}
 
-    #     clf.set_params(**param)
-    #     models_config[est_name] = clf
+        clf.set_params(**param)
+        models_config[est_name] = clf
 
-    # # Set up fairness analysis
-    # metrics_dct = compute_metrics_with_config(
-    #     base_flow_dataset,
-    #     config,
-    #     models_config,
-    #     RESULTS_PATH,
-    # )
+    # Set up fairness analysis
+    metrics_dct = compute_metrics_with_config(
+        base_flow_dataset,
+        config,
+        models_config,
+        RESULTS_PATH,
+    )
