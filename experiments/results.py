@@ -20,7 +20,7 @@ from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer
 from mlresearch.synthetic_data import GeometricSMOTE
 from mlresearch.utils import check_pipelines
 # from mlresearch.metrics import get_scorer
-from mlresearch.model_selection import HalvingModelSearchCV
+from mlresearch.model_selection import ModelSearchCV
 
 # Experimental design
 from virny.datasets.base import BaseDataLoader
@@ -34,8 +34,8 @@ from synfair.synthetic_data import SDVGenerator, ImbLearnGenerator
 
 DATASET_NAMES = [
     # "GERMAN CREDIT",
-    # "CARDIO",
-    # "CREDIT",
+    "CARDIO",
+    "CREDIT",
     "TRAVELTIME",
 ]
 RESULTS_PATH = join(dirname(__file__), "results")
@@ -56,9 +56,9 @@ CONFIG = {
                 "model__default_distribution": [
                     "norm",
                     "beta",
-                    "truncnorm",
+                    # "truncnorm",
                     "uniform",
-                    "gamma",
+                    # "gamma",
                     # "gaussian_kde",  # Raising memory issues
                 ]
             },
@@ -66,27 +66,27 @@ CONFIG = {
         (
             "TVAE",
             SDVGenerator(model=TVAESynthesizer),
-            {"model__epochs": [300, 600, 900]},
+            {"model__epochs": [100, 1000]},
         ),
-        (
-            "LIN",
-            ImbLearnGenerator(model=SMOTENC),
-            {
+        # (
+        #     "LIN",
+        #     ImbLearnGenerator(model=SMOTENC),
+        #     {
 
-                "model__k_neighbors": [3, 5],
-            },
-        ),
-        (
-            "GEOM",
-            ImbLearnGenerator(model=GeometricSMOTE),
-            {
+        #         "model__k_neighbors": [3, 5],
+        #     },
+        # ),
+        # (
+        #     "GEOM",
+        #     ImbLearnGenerator(model=GeometricSMOTE),
+        #     {
 
-                "model__k_neighbors": [3, 5],
-                "model__selection_strategy": ["combined", "minority", "majority"],
-                "model__truncation_factor": [-1.0, -0.5, 0.0, 0.5, 1.0],
-                "model__deformation_factor": [0.0, 0.25, 0.5, 0.75, 1.0],
-            },
-        ),
+        #         "model__k_neighbors": [3, 5],
+        #         "model__selection_strategy": ["combined"],
+        #         "model__truncation_factor": [-1.0, 0.0, 1.0],
+        #         "model__deformation_factor": [0.0, 0.5, 1.0],
+        #     },
+        # ),
     ],
     "ENCODER": [
         (
@@ -104,21 +104,21 @@ CONFIG = {
         (
             "LR",
             LogisticRegression(max_iter=10000),
-            {"penalty": [None, "l1", "l2"], "solver": ["saga"]},
+            {"penalty": ["l1", "l2"], "solver": ["saga"], "C": [0.1, 1.0]},
         ),
-        ("KNN", KNeighborsClassifier(), {"n_neighbors": [3, 6, 9, 12, 15]}),
-        (
-            "MLP",
-            MLPClassifier(max_iter=10000),
-            {
-                "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25), (10, 10)],
-                "alpha": [0.0001, 0.001, 0.01],
-            },
-        ),
+        ("KNN", KNeighborsClassifier(), {"n_neighbors": [1, 5, 10]}),
+        # (
+        #     "MLP",
+        #     MLPClassifier(max_iter=10000),
+        #     {
+        #         "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25), (10, 10)],
+        #         "alpha": [0.0001, 0.001, 0.01],
+        #     },
+        # ),
         (
             "DT",
             DecisionTreeClassifier(),
-            {"criterion": ["gini", "entropy"], "max_depth": np.arange(5, 20, step=5)},
+            {"criterion": ["gini", "entropy"], "max_depth": [5, 10]},
         ),
         # (
         #     "LGBM",
@@ -137,11 +137,9 @@ CONFIG = {
             RandomForestClassifier(),
             {
                 "criterion": ["gini", "entropy"],
-                "n_estimators": [100, 250, 500],
-                "max_depth": np.arange(5, 20, step=5),
-                # "min_samples_split": np.arange(2, 11, step=3),
-                # "min_samples_leaf": np.arange(2, 11, step=3),
-                "max_features": ["sqrt", "log2"],
+                "n_estimators": [10, 100, 1000],
+                "max_depth": [5, 10],
+                # "max_features": ["sqrt", "log2"],
                 # "bootstrap": [True, False],
             },
         ),
@@ -151,7 +149,7 @@ CONFIG = {
     "N_RUNS": 1,  # 3
     "VIRNY_TEST_SET_FRACTION": 0.2,
     "RANDOM_STATE": 42,
-    "N_JOBS": 4  # -1,
+    "N_JOBS": -1,
 }
 
 # Run experiments for each dataset
@@ -264,10 +262,9 @@ for dataset_name in DATASET_NAMES:
     filename = join(RESULTS_PATH, f"param_tuning_{dataset_name}.pkl")
     if not isfile(filename):
         # Run parameter tuning
-        experiment = HalvingModelSearchCV(
+        experiment = ModelSearchCV(
             estimators=pipelines,
             param_grids=params,
-            factor=2,
             scoring=CONFIG["SCORING"],
             n_jobs=CONFIG["N_JOBS"],
             cv=StratifiedKFold(
