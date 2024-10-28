@@ -1,0 +1,14 @@
+CARDIO: {
+    "gender": [1],
+}
+CREDIT: {
+    "age>60": [1],
+}
+GERMAN CREDIT: {
+    "Attribute20": ["A201"], # Foreign worker
+    "Attribute9": ["A92", "A95"], # Female if one of these values
+}
+TRAVELTIME: {
+  'RAC1P': [2, 3, 4, 5, 6, 7, 8, 9],
+  'SEX': [2]
+}

@@ -26,11 +26,15 @@ if __SYNFAIR_SETUP__:
     # process, as it may not be compiled yet
 else:
     from . import datasets
+    from . import metrics
+    from . import synthetic_data
     from ._version import __version__
     from .utils._show_versions import show_versions
 
     __all__ = [
         "datasets",
+        "metrics",
+        "synthetic_data",
         # Non-modules:
         "show_versions",
         "__version__",

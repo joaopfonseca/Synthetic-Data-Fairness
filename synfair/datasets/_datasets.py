@@ -127,7 +127,6 @@ class SynFairDatasets(Datasets):
             (data["RevolvingUtilizationOfUnsecuredLines"] < 1.7)
             & (data["age"] >= 18)
             & (data["NumberOfTime30-59DaysPastDueNotWorse"] < 20)
-            # & (data["DebtRatio"] < 10)  # problem with unemployed people
             & (data["MonthlyIncome"] < 40000)
             & (data["NumberOfOpenCreditLinesAndLoans"] <= 40)
             & (data["NumberOfTimes90DaysLate"] < 20)

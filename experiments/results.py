@@ -1,36 +1,35 @@
 # Base
 from os.path import join, dirname, isfile
-import numpy as np
+import yaml
+
+# import numpy as np
 import pandas as pd
 
 # Models
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, FunctionTransformer, StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler  # , FunctionTransformer
 from sklearn.dummy import DummyClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.neural_network import MLPClassifier
+
+# from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import StratifiedKFold
-# from lightgbm import LGBMClassifier
-from imblearn.over_sampling import SMOTENC
-from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer
-from mlresearch.synthetic_data import GeometricSMOTE
-from mlresearch.utils import check_pipelines
-# from mlresearch.metrics import get_scorer
-from mlresearch.model_selection import ModelSearchCV
 
-# Experimental design
-from virny.datasets.base import BaseDataLoader
-from virny.preprocessing.basic_preprocessing import preprocess_dataset
-from virny.utils.custom_initializers import create_config_obj
-from virny.user_interfaces.multiple_models_api import compute_metrics_with_config
+# from lightgbm import LGBMClassifier
+# from imblearn.over_sampling import SMOTENC
+from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer
+
+# from mlresearch.synthetic_data import GeometricSMOTE
+from mlresearch.utils import check_pipelines
+from mlresearch.model_selection import ModelSearchCV
 
 # Own objects
 from synfair.datasets import SynFairDatasets
-from synfair.synthetic_data import SDVGenerator, ImbLearnGenerator
+from synfair.synthetic_data import SDVGenerator  # , ImbLearnGenerator
+from synfair.metrics import make_fairness_metrics
 
 DATASET_NAMES = [
     # "GERMAN CREDIT",
@@ -72,7 +71,6 @@ CONFIG = {
         #     "LIN",
         #     ImbLearnGenerator(model=SMOTENC),
         #     {
-
         #         "model__k_neighbors": [3, 5],
         #     },
         # ),
@@ -80,7 +78,6 @@ CONFIG = {
         #     "GEOM",
         #     ImbLearnGenerator(model=GeometricSMOTE),
         #     {
-
         #         "model__k_neighbors": [3, 5],
         #         "model__selection_strategy": ["combined"],
         #         "model__truncation_factor": [-1.0, 0.0, 1.0],
@@ -144,6 +141,9 @@ CONFIG = {
             },
         ),
     ],
+    "SENSITIVE_ATTRS": yaml.safe_load(
+        open(join(dirname(__file__), "sensitive_attrs.yml"))
+    ),
     "SCORING": "f1_macro",
     "N_SPLITS": 5,
     "N_RUNS": 1,  # 3
@@ -152,6 +152,68 @@ CONFIG = {
     "N_JOBS": -1,
 }
 
+
+def add_dataset_param(pipelines, params, categorical_columns, metadata):
+    """
+    Add dataset-specific parameters to the pipelines and parameter grid.
+    """
+    params_ = []
+    for param in params:
+        est_name = param["est_name"][0]
+        clf = clone(dict(pipelines)[est_name])
+        gen_name = est_name.split("|")[0]
+        param[f"{est_name}__PREP__transformers"] = [
+            [
+                (
+                    "OHE",
+                    OneHotEncoder(
+                        handle_unknown="infrequent_if_exist", sparse_output=False
+                    ),
+                    categorical_columns,
+                ),
+            ]
+        ]
+
+        metadata_params = [
+            f"{est_name}__{p}"
+            for p in clf.get_params()
+            if p.split("__")[-1] == "metadata" and p.split("__")[0] == gen_name
+        ]
+        for mp in metadata_params:
+            param[mp] = [metadata]
+
+        params_.append(param)
+
+    return pipelines, params_
+
+
+def add_constraints(pipelines, params, constraints):
+    """
+    Add constraints to the pipelines and parameter grid.
+    """
+    const_pipelines = []
+    const_params = []
+    for param in params:
+        est_name = param["est_name"][0]
+        gen_name = est_name.split("|")[0]
+        clf = clone(dict(pipelines)[est_name])
+
+        const_name = f"CONST_{est_name}"
+        constraint_params = [
+            f"{const_name}__{p}"
+            for p in clf.get_params()
+            if p.split("__")[-1] == "constraints" and p.split("__")[0] == gen_name
+        ]
+        const_param = {k.replace(est_name, const_name): v for k, v in param.items()}
+        for cp in constraint_params:
+            const_param["est_name"] = [const_name]
+            const_param[cp] = [constraints]
+            const_params.append(const_param)
+            if const_name not in dict(const_pipelines):
+                const_pipelines.append((const_name, clf))
+    return const_pipelines, const_params
+
+
 # Run experiments for each dataset
 for dataset_name in DATASET_NAMES:
 
@@ -159,13 +221,7 @@ for dataset_name in DATASET_NAMES:
     df = dict(CONFIG["DATASETS"])[dataset_name]
     metadata = dict(CONFIG["METADATA"])[dataset_name]
     constraints = dict(CONFIG["CONSTRAINTS"])[dataset_name]
-
-    config_path = join(
-        dirname(__file__),
-        "virny_data_configs",
-        dataset_name.lower().replace(" ", "_") + "_config.yml"
-    )
-    config = create_config_obj(config_yaml_path=config_path)
+    sensitive_attributes = CONFIG["SENSITIVE_ATTRS"][dataset_name]
 
     numerical_columns = [
         col
@@ -179,21 +235,6 @@ for dataset_name in DATASET_NAMES:
         if (meta["sdtype"] == "categorical" and col != "target")
     ]
 
-    data_loader = BaseDataLoader(
-        full_df=df,
-        target="target",
-        numerical_columns=numerical_columns,
-        categorical_columns=categorical_columns,
-    )
-
-    base_flow_dataset = preprocess_dataset(
-        data_loader=data_loader,
-        column_transformer=FunctionTransformer(),
-        sensitive_attributes_dct=config.sensitive_attributes_dct,
-        test_set_fraction=CONFIG["VIRNY_TEST_SET_FRACTION"],
-        dataset_split_seed=CONFIG["RANDOM_STATE"],
-    )
-
     # Set up models
     pipelines, params = check_pipelines(
         CONFIG["GENERATORS"],
@@ -204,59 +245,17 @@ for dataset_name in DATASET_NAMES:
     )
 
     # Add fixed params for preprocessing current dataset
-    params_ = []
-    for param in params:
-        est_name = param["est_name"][0]
-        clf = clone(dict(pipelines)[est_name])
-        gen_name = est_name.split("|")[0]
-        param[f"{est_name}__PREP__transformers"] = [[
-            (
-                "OHE",
-                OneHotEncoder(
-                    handle_unknown="infrequent_if_exist", sparse_output=False
-                ),
-                categorical_columns,
-            ),
-        ]]
-
-        metadata_params = [
-            f"{est_name}__{p}" for p in clf.get_params()
-            if p.split("__")[-1] == "metadata"
-            and p.split("__")[0] == gen_name
-        ]
-        for mp in metadata_params:
-            param[mp] = [metadata]
-
-        params_.append(param)
-
-    params = params_
+    pipelines, params = add_dataset_param(
+        pipelines, params, categorical_columns, metadata
+    )
 
     # Add version with constraints (if applicable)
-    const_params = []
-    for param in params:
-        est_name = param["est_name"][0]
-        gen_name = est_name.split("|")[0]
-        clf = clone(dict(pipelines)[est_name])
-
-        const_name = f"CONST_{est_name}"
-        constraint_params = [
-            f"{const_name}__{p}" for p in clf.get_params()
-            if p.split("__")[-1] == "constraints"
-            and p.split("__")[0] == gen_name
-        ]
-        const_param = {
-            k.replace(est_name, const_name): v
-            for k, v in param.items()
-        }
-        for cp in constraint_params:
-            const_param["est_name"] = [const_name]
-            const_param[cp] = [constraints]
-            const_params.append(const_param)
-            if const_name not in dict(pipelines):
-                pipelines.append(
-                    (const_name, clf)
-                )
+    const_pipelines, const_params = add_constraints(pipelines, params, constraints)
+    pipelines += const_pipelines
     params += const_params
+
+    # setup fairness metrics
+    scoring = make_fairness_metrics(df, sensitive_attributes)
 
     # Check if results already exist
     filename = join(RESULTS_PATH, f"param_tuning_{dataset_name}.pkl")
@@ -265,7 +264,7 @@ for dataset_name in DATASET_NAMES:
         experiment = ModelSearchCV(
             estimators=pipelines,
             param_grids=params,
-            scoring=CONFIG["SCORING"],
+            scoring=scoring,
             n_jobs=CONFIG["N_JOBS"],
             cv=StratifiedKFold(
                 n_splits=CONFIG["N_SPLITS"],
@@ -278,37 +277,4 @@ for dataset_name in DATASET_NAMES:
         ).fit(df.drop(columns=["target"]), df["target"])
 
         # Save results
-        pd.DataFrame(experiment.cv_results_).to_pickle(
-            filename
-        )
-
-    # Load results
-    results = pd.read_pickle(filename)
-    results = (
-        results[
-            ["param_est_name", "params", "mean_test_score"]
-        ]
-        .groupby("param_est_name")
-        .apply(
-            lambda df: df.loc[df["mean_test_score"].idxmax()],
-            # include_groups=False
-        )
-    )
-    opt_param_dict = results["params"].to_dict()
-
-    models_config = {}
-    for param in opt_param_dict.values():
-        est_name = param.pop("est_name")
-        clf = clone(dict(pipelines)[est_name])
-        param = {"__".join(k.split("__")[1:]): v for k, v in param.items()}
-
-        clf.set_params(**param)
-        models_config[est_name] = clf
-
-    # Set up fairness analysis
-    metrics_dct = compute_metrics_with_config(
-        base_flow_dataset,
-        config,
-        models_config,
-        RESULTS_PATH,
-    )
+        pd.DataFrame(experiment.cv_results_).to_pickle(filename)
