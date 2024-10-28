@@ -48,9 +48,9 @@ class FilteredScorer(_Scorer):
         if self._filter_feature_value is not None:
             feature_name, value = self._filter_feature_value
             if isinstance(value, str):
-                mask = X[:, feature_name] == value
+                mask = X[feature_name] == value
             else:
-                mask = np.isin(X[:, feature_name], value)
+                mask = np.isin(X[feature_name], value)
             X = X[mask]
             y_true = y_true[mask]
 
@@ -83,25 +83,25 @@ def _get_conf_matrix(y_true, y_pred):
 def false_positive_rate(y_true, y_pred, target_label=1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     fpr = fp / (fp + tn)
-    return fpr
+    return fpr[target_label]
 
 
 def false_negative_rate(y_true, y_pred, target_label=1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     fnr = fn / (fn + tp)
-    return fnr
+    return fnr[target_label]
 
 
 def overall_accuracy(y_true, y_pred, target_label=1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     acc = (tp + tn) / (tp + fp + fn + tn)
-    return acc
+    return acc[target_label]
 
 
 def selection_rate(y_true, y_pred, target_label=1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     sr = (tp + fp) / (tp + fp + fn + tn)
-    return sr
+    return sr[target_label]
 
 
 def positive_predictive_value(y_true, y_pred, target_label=1):
@@ -110,7 +110,7 @@ def positive_predictive_value(y_true, y_pred, target_label=1):
     """
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     ppv = tp / (tp + fp)
-    return ppv
+    return ppv[target_label]
 
 
 def group_size(y_true, y_pred):
