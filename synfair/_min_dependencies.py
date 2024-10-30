@@ -6,6 +6,7 @@ ML_RESEARCH_MIN_VERSION = "0.5.1"
 # NUMPY_MIN_VERSION = "1.20.0"
 PANDAS_MIN_VERSION = "2.1.0"
 SDV_MIN_VERSION = "1.0.0"
+PYYAML_MIN_VERSION = "6.0.2"
 # SKLEARN_MIN_VERSION = "1.2.0"
 # IMBLEARN_MIN_VERSION = "0.8.0"
 # TQDM_MIN_VERSION = "4.46.0"
@@ -16,6 +17,7 @@ dependent_packages = {
     "ml-research": (ML_RESEARCH_MIN_VERSION, "install"),
     "pandas": (PANDAS_MIN_VERSION, "install"),
     "sdv": (SDV_MIN_VERSION, "install"),
+    "pyyaml": (PYYAML_MIN_VERSION, "install"),
     # "numpy": (NUMPY_MIN_VERSION, "install"),
     # "scikit-learn": (SKLEARN_MIN_VERSION, "install"),
     # "imbalanced-learn": (IMBLEARN_MIN_VERSION, "install"),
