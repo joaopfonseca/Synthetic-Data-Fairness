@@ -3,10 +3,11 @@ Wrapper for SDV package to allow integration with sklearn pipelines.
 """
 
 import os
+from collections import Counter
 import numpy as np
 import pandas as pd
 from imblearn.base import BaseSampler
-from sdv.metadata import SingleTableMetadata
+from sdv.metadata import Metadata
 
 from ..datasets._constraints import custom_constraints_list
 
@@ -33,6 +34,10 @@ class SDVGenerator(BaseSampler):
         # https://sdv.dev/blog/eng-sdv-constraints/
         np.random.seed(self.random_state)
 
+        print("::ORIGINAL::", Counter(y))
+        if len(Counter(y)) < 2:
+            print("::DEBUG:: Only one class in the dataset.")
+
         # Check y parameter (included for compatibility with sklearn)
         if y is not None:
             X = pd.concat([X, y], axis=1)
@@ -50,7 +55,7 @@ class SDVGenerator(BaseSampler):
         self.constraints_ = [] if self.constraints is None else self.constraints
 
         # Check metadata
-        metadata = SingleTableMetadata()
+        metadata = Metadata()
         if self.metadata is None:
             metadata.detect_from_dataframe(X)
         else:
@@ -71,9 +76,15 @@ class SDVGenerator(BaseSampler):
 
     def resample(self, X=None, y=None):
         X_res = self.model_.sample(num_rows=self.n_rows_)
+
+        print("::RESAMPLED::", Counter(X_res[self._y_name]))
+        if len(Counter(X_res[self._y_name])) < 2:
+            print("::DEBUG::", self.model_.__class__.__name__)
+
         if hasattr(self, "_y_name"):
             y_res = X_res[self._y_name]
             X_res = X_res.drop(columns=self._y_name)
+
             return X_res, y_res
         return X_res
 

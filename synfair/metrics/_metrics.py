@@ -3,6 +3,13 @@ from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.metrics._scorer import _Scorer
 
 
+def _parse_greater_less_than(value):
+    if isinstance(value, str) and value[0] in "<>=":
+        return lambda x: eval("x" + value)
+    else:
+        return None
+
+
 class FilteredScorer(_Scorer):
     """filter_feature_value is a tuple of (feature_name, value) to filter
     the data before prediction."""
@@ -48,9 +55,21 @@ class FilteredScorer(_Scorer):
         if self._filter_feature_value is not None:
             feature_name, value = self._filter_feature_value
             if isinstance(value, str):
-                mask = X[feature_name] == value
+                value_func = _parse_greater_less_than(value)
+                if value_func is None:
+                    mask = X[feature_name] == value
+                else:
+                    mask = value_func(X[feature_name])
             else:
-                mask = np.isin(X[feature_name], value)
+                value_funcs = [_parse_greater_less_than(v) for v in value]
+                if all([f is None for f in value_funcs]):
+                    mask = np.isin(X[feature_name], value)
+                elif all([f is not None for f in value_funcs]):
+                    masks = [value_func(X[feature_name]) for value_func in value_funcs]
+                    mask = np.any(np.array(masks), axis=0)
+                else:
+                    raise KeyError("Could not parse sensitive attributes.")
+
             X = X[mask]
             y_true = y_true[mask]
 
@@ -80,31 +99,31 @@ def _get_conf_matrix(y_true, y_pred):
     return tp, tn, fp, fn
 
 
-def false_positive_rate(y_true, y_pred, target_label=1):
+def false_positive_rate(y_true, y_pred, target_label=-1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     fpr = fp / (fp + tn)
     return fpr[target_label]
 
 
-def false_negative_rate(y_true, y_pred, target_label=1):
+def false_negative_rate(y_true, y_pred, target_label=-1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     fnr = fn / (fn + tp)
     return fnr[target_label]
 
 
-def overall_accuracy(y_true, y_pred, target_label=1):
+def overall_accuracy(y_true, y_pred, target_label=-1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     acc = (tp + tn) / (tp + fp + fn + tn)
     return acc[target_label]
 
 
-def selection_rate(y_true, y_pred, target_label=1):
+def selection_rate(y_true, y_pred, target_label=-1):
     tp, tn, fp, fn = _get_conf_matrix(y_true, y_pred)
     sr = (tp + fp) / (tp + fp + fn + tn)
     return sr[target_label]
 
 
-def positive_predictive_value(y_true, y_pred, target_label=1):
+def positive_predictive_value(y_true, y_pred, target_label=-1):
     """
     Positive Predictive Value (PPV) or Precision
     """
@@ -144,7 +163,9 @@ def make_fairness_metrics(X, sensitive_attributes):
 
     # Fetches each sensitive attribute
     for sensitive_attribute, dis_values in sensitive_attributes.items():
-        adv_values = np.unique(X[~np.isin(X[sensitive_attribute], dis_values)])
+        adv_values = np.unique(
+            X.loc[~np.isin(X[sensitive_attribute], dis_values), sensitive_attribute]
+        )
 
         # Fetches each metric
         for metric_name, score_func in metrics.items():

@@ -32,7 +32,10 @@ from synfair.synthetic_data import SDVGenerator  # , ImbLearnGenerator
 from synfair.metrics import make_fairness_metrics
 
 DATASET_NAMES = [
-    # "GERMAN CREDIT",
+    "BANK",
+    "LAW SCHOOL",
+    "DIABETES",
+    "GERMAN CREDIT",
     "CARDIO",
     "CREDIT",
     "TRAVELTIME",
@@ -65,7 +68,7 @@ CONFIG = {
         (
             "TVAE",
             SDVGenerator(model=TVAESynthesizer),
-            {"model__epochs": [100, 1000]},
+            {"model__epochs": [200, 2000]},
         ),
         # (
         #     "LIN",
@@ -147,7 +150,6 @@ CONFIG = {
     "SCORING": "f1_macro",
     "N_SPLITS": 5,
     "N_RUNS": 1,  # 3
-    "VIRNY_TEST_SET_FRACTION": 0.2,
     "RANDOM_STATE": 42,
     "N_JOBS": -1,
 }
@@ -218,20 +220,22 @@ def add_constraints(pipelines, params, constraints):
 for dataset_name in DATASET_NAMES:
 
     # Set up data
-    df = dict(CONFIG["DATASETS"])[dataset_name]
+    df = dict(CONFIG["DATASETS"])[
+        dataset_name
+    ]  # .sample(n=200, random_state=42)  # uncomment for testing purposes
     metadata = dict(CONFIG["METADATA"])[dataset_name]
     constraints = dict(CONFIG["CONSTRAINTS"])[dataset_name]
     sensitive_attributes = CONFIG["SENSITIVE_ATTRS"][dataset_name]
 
     numerical_columns = [
         col
-        for col, meta in metadata["columns"].items()
+        for col, meta in metadata["tables"]["table"]["columns"].items()
         if (meta["sdtype"] == "numerical" and col != "target")
     ]
 
     categorical_columns = [
         col
-        for col, meta in metadata["columns"].items()
+        for col, meta in metadata["tables"]["table"]["columns"].items()
         if (meta["sdtype"] == "categorical" and col != "target")
     ]
 
