@@ -57,7 +57,9 @@ class SynFairDatasets(Datasets):
             name: len(
                 [
                     col_name
-                    for col_name, meta in data_types[name]["columns"].items()
+                    for col_name, meta in (
+                        data_types[name]["tables"]["table"]["columns"].items()
+                    )
                     if meta["sdtype"] != "numerical"
                 ]
             )
