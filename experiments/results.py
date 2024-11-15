@@ -38,7 +38,7 @@ DATASET_NAMES = [
     "GERMAN CREDIT",
     "CARDIO",
     "CREDIT",
-    "TRAVELTIME",
+    # "TRAVELTIME",
 ]
 RESULTS_PATH = join(dirname(__file__), "results")
 
