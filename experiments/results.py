@@ -58,10 +58,7 @@ CONFIG = {
                 "model__default_distribution": [
                     "norm",
                     "beta",
-                    # "truncnorm",
                     "uniform",
-                    # "gamma",
-                    # "gaussian_kde",  # Raising memory issues
                 ]
             },
         ),

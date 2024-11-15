@@ -178,6 +178,7 @@ class SynFairDatasets(Datasets):
         mask = ~(default_mask & ~credit_mask)
         data = data[mask]
         data["target"] = (data["target"] == "yes").astype(int)
+        data = data[data["campaign"] <= 30]
 
         return data
 

@@ -419,22 +419,6 @@ constraints = {
         {
             "constraint_class": "ScalarInequality",
             "constraint_parameters": {
-                "column_name": "duration",
-                "relation": ">=",
-                "value": 1,
-            },
-        },
-        {
-            "constraint_class": "ScalarInequality",
-            "constraint_parameters": {
-                "column_name": "duration",
-                "relation": "<=",
-                "value": 2000,
-            },
-        },
-        {
-            "constraint_class": "ScalarInequality",
-            "constraint_parameters": {
                 "column_name": "campaign",
                 "relation": "<=",
                 "value": 30,
