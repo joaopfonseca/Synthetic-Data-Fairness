@@ -2,6 +2,7 @@ import requests
 from urllib.parse import urljoin
 import numpy as np
 import pandas as pd
+from folktables import ACSDataSource, ACSTravelTime
 from mlresearch.datasets.base import Datasets
 
 from ._constraints import constraints
@@ -142,17 +143,35 @@ class SynFairDatasets(Datasets):
         ]
         return data
 
+    # def fetch_traveltime(self):
+    #     """
+    #     Fetch the TravelTime dataset (based on the Folktables project covering
+    #     US census data).
+
+    #     See https://zenodo.org/records/13375221 for more information.
+    #     """
+    #     data = pd.read_csv(urljoin(URL, "traveltime.csv"), index_col=1)
+    #     data.drop(columns=["Unnamed: 0"], inplace=True)
+    #     data.rename(columns={"LABEL": "target"}, inplace=True)
+    #     data = data[data["POVPIP"] >= 0]
+    #     return data
+
     def fetch_traveltime(self):
         """
         Fetch the TravelTime dataset (based on the Folktables project covering
         US census data).
 
-        See https://zenodo.org/records/13375221 for more information.
+        See https://arxiv.org/pdf/2108.04884 for more information.
         """
-        data = pd.read_csv(urljoin(URL, "traveltime.csv"), index_col=1)
-        data.drop(columns=["Unnamed: 0"], inplace=True)
-        data.rename(columns={"LABEL": "target"}, inplace=True)
-        data = data[data["POVPIP"] >= 0]
+        data_source = ACSDataSource(
+            survey_year="2018", horizon="1-Year", survey="person"
+        )
+        data = data_source.get_data(states=["NY"], download=True)
+        data, labels, _ = ACSTravelTime.df_to_pandas(data)
+        data.drop(columns=["ST", "PUMA", "POWPUMA"])
+        data["target"] = labels
+        data = data.astype(int)
+        # data = data[data["POVPIP"] >= 0]
         return data
 
     def fetch_bank(self):
