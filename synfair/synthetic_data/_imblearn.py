@@ -1,6 +1,7 @@
 from collections import Counter
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 from imblearn.base import BaseSampler
 
 
@@ -54,10 +55,28 @@ class ImbLearnGenerator(BaseSampler):
             **self.model_params
         )
         self.model_.fit(X, y)
+
         return self
+
+    def resample(self, X, y):
+        n_rows = X.shape[0]
+        X_new, y_new = self.fit_resample(self._X, self._y)
+        X_new, _, y_new, _ = train_test_split(
+            X_new,
+            y_new,
+            train_size=n_rows,
+            random_state=self.random_state,
+            stratify=y_new,
+        )
+        return X_new, y_new
 
     def fit_resample(self, X, y):
         self.fit(X, y)
+
+        # Save data for resampling later on
+        self._X = X
+        self._y = y
+
         X_res, y_res = self.model_.fit_resample(X, y)
         X_new, y_new = [], []
         for class_label, n_original_samples in self._counts.items():
