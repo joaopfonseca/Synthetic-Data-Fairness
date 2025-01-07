@@ -1,8 +1,13 @@
 # Base
+import argparse
 from os.path import join, dirname, isfile
 import yaml
+import pickle
+from copy import deepcopy
+from itertools import product
 
-# import numpy as np
+# Core
+import numpy as np
 import pandas as pd
 
 # Models
@@ -20,7 +25,7 @@ from sklearn.model_selection import StratifiedKFold
 
 # from lightgbm import LGBMClassifier
 # from imblearn.over_sampling import SMOTENC
-from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer
+from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer, CTGANSynthesizer
 
 # from mlresearch.synthetic_data import GeometricSMOTE
 from mlresearch.utils import check_pipelines
@@ -31,16 +36,25 @@ from synfair.datasets import SynFairDatasets
 from synfair.synthetic_data import SDVGenerator  # , ImbLearnGenerator
 from synfair.metrics import make_fairness_metrics
 
-DATASET_NAMES = [
-    "BANK",
-    "LAW SCHOOL",
-    "DIABETES",
-    "GERMAN CREDIT",
-    "CARDIO",
-    "CREDIT",
-    # "TRAVELTIME",
-]
+parser = argparse.ArgumentParser()
+parser.add_argument("-d", "--dataset", help="Dataset name", default=None)
+
+dataset_name = parser.parse_args().dataset
+if dataset_name is None:
+    DATASET_NAMES = [
+        "DIABETES",
+        "GERMAN CREDIT",
+        "LAW SCHOOL",
+        "BANK",
+        "CARDIO",
+        "CREDIT",
+        # "TRAVELTIME",
+    ]
+else:
+    DATASET_NAMES = [dataset_name]
+
 RESULTS_PATH = join(dirname(__file__), "results")
+ANALYSIS_PATH = join(dirname(__file__), "analysis")
 
 
 datasets = SynFairDatasets(names=DATASET_NAMES).download()
@@ -67,23 +81,11 @@ CONFIG = {
             SDVGenerator(model=TVAESynthesizer),
             {"model__epochs": [200, 2000]},
         ),
-        # (
-        #     "LIN",
-        #     ImbLearnGenerator(model=SMOTENC),
-        #     {
-        #         "model__k_neighbors": [3, 5],
-        #     },
-        # ),
-        # (
-        #     "GEOM",
-        #     ImbLearnGenerator(model=GeometricSMOTE),
-        #     {
-        #         "model__k_neighbors": [3, 5],
-        #         "model__selection_strategy": ["combined"],
-        #         "model__truncation_factor": [-1.0, 0.0, 1.0],
-        #         "model__deformation_factor": [0.0, 0.5, 1.0],
-        #     },
-        # ),
+        (
+            "CTGAN",
+            SDVGenerator(model=CTGANSynthesizer),
+            {"model__epochs": [200, 2000]},
+        ),
     ],
     "ENCODER": [
         (
@@ -104,31 +106,11 @@ CONFIG = {
             {"penalty": ["l1", "l2"], "solver": ["saga"], "C": [0.1, 1.0]},
         ),
         ("KNN", KNeighborsClassifier(), {"n_neighbors": [1, 5, 10]}),
-        # (
-        #     "MLP",
-        #     MLPClassifier(max_iter=10000),
-        #     {
-        #         "hidden_layer_sizes": [(100,), (50, 50), (25, 25, 25), (10, 10)],
-        #         "alpha": [0.0001, 0.001, 0.01],
-        #     },
-        # ),
         (
             "DT",
             DecisionTreeClassifier(),
             {"criterion": ["gini", "entropy"], "max_depth": [5, 10]},
         ),
-        # (
-        #     "LGBM",
-        #     LGBMClassifier(verbose=-1),
-        #     {
-        #         "n_estimators": [100, 250, 500, 750],
-        #         "max_depth": np.arange(5, 20, step=4),
-        #         # "num_leaves": np.arange(10, 50, step=10),
-        #         # "learning_rate": np.logspace(-4, -1, 4),
-        #         # "subsample": np.linspace(0.5, 1.0, 5),
-        #         # "reg_lambda": np.logspace(-1, 2, 4),
-        #     },
-        # ),
         (
             "RF",
             RandomForestClassifier(),
@@ -136,17 +118,14 @@ CONFIG = {
                 "criterion": ["gini", "entropy"],
                 "n_estimators": [10, 100, 1000],
                 "max_depth": [5, 10],
-                # "max_features": ["sqrt", "log2"],
-                # "bootstrap": [True, False],
             },
         ),
     ],
     "SENSITIVE_ATTRS": yaml.safe_load(
         open(join(dirname(__file__), "sensitive_attrs.yml"))
     ),
-    "SCORING": "f1_macro",
     "N_SPLITS": 5,
-    "N_RUNS": 1,  # 3
+    "N_RUNS": 1,
     "RANDOM_STATE": 42,
     "N_JOBS": -1,
 }
@@ -213,6 +192,39 @@ def add_constraints(pipelines, params, constraints):
     return const_pipelines, const_params
 
 
+def get_best_params(df_results, target_metric="mean_test_f1"):
+    params_ = df_results.groupby("param_est_name").apply(
+        lambda x: x.iloc[x[target_metric].argmax()], include_groups=False
+    )["params"]
+    return list(params_)
+
+
+def set_pipeline_parameters(pipelines, parameters):
+    pipelines_ = []
+    for params in parameters:
+        params = deepcopy(params)
+        est_name = params.pop("est_name")
+        params = {
+            key.replace(f"{est_name}__", ""): value for key, value in params.items()
+        }
+        pipeline = clone(dict(pipelines)[est_name]).set_params(**params)
+        pipelines_.append((est_name, pipeline))
+
+    return pipelines_
+
+
+def synthetic_size_parameters(pipelines, rows_perc, param_name="n_rows"):
+    rows_params = []
+    for name, pipeline in pipelines:
+        n_rows_params = [
+            p_ for p_ in pipeline.get_params().keys() if p_.endswith(param_name)
+        ]
+        for n_rows, perc in product(n_rows_params, rows_perc):
+            param_ = {"est_name": [name], f"{name}__{n_rows}": [perc]}
+            rows_params.append(param_)
+    return rows_params
+
+
 # Run experiments for each dataset
 for dataset_name in DATASET_NAMES:
 
@@ -257,7 +269,11 @@ for dataset_name in DATASET_NAMES:
 
     # setup fairness metrics
     scoring = make_fairness_metrics(df, sensitive_attributes)
+    scoring_synth = make_fairness_metrics(df, sensitive_attributes, use_synthetic=True)
+    scoring = {**scoring, **scoring_synth}
 
+    #####################################################################################
+    # RQ1
     # Check if results already exist
     filename = join(RESULTS_PATH, f"param_tuning_{dataset_name}.pkl")
     if not isfile(filename):
@@ -265,6 +281,39 @@ for dataset_name in DATASET_NAMES:
         experiment = ModelSearchCV(
             estimators=pipelines,
             param_grids=params,
+            scoring=scoring,
+            n_jobs=CONFIG["N_JOBS"],
+            cv=StratifiedKFold(
+                n_splits=CONFIG["N_SPLITS"],
+                shuffle=True,
+                random_state=CONFIG["RANDOM_STATE"],
+            ),
+            verbose=1,
+            return_train_score=True,
+            refit=False,
+        ).fit(df.drop(columns=["target"]), df["target"])
+
+        # Save results
+        pd.DataFrame(experiment.cv_results_).to_pickle(filename)
+
+    # Read results and set up best models
+    df_results = pickle.load(open(filename, "rb"))
+    best_params = get_best_params(df_results, target_metric="mean_test_f1")
+    pipelines_ = set_pipeline_parameters(pipelines, best_params)
+
+    # Set up parameters for varying number of rows
+    rows_perc = np.arange(0.1, 2.1, 0.1)
+    rows_params = synthetic_size_parameters(pipelines_, rows_perc)
+
+    #####################################################################################
+    # RQ2
+    # Check if results already exist
+    filename = join(RESULTS_PATH, f"synth_size_{dataset_name}.pkl")
+    if not isfile(filename):
+        # Run parameter tuning
+        experiment = ModelSearchCV(
+            estimators=pipelines_,
+            param_grids=rows_params,
             scoring=scoring,
             n_jobs=CONFIG["N_JOBS"],
             cv=StratifiedKFold(

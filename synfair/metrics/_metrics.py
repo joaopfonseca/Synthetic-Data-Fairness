@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.metrics import confusion_matrix, f1_score
 from sklearn.metrics._scorer import _Scorer
+from imblearn.base import BaseSampler
 
 
 def _parse_greater_less_than(value):
@@ -89,6 +90,16 @@ class FilteredScorer(_Scorer):
         pass
 
 
+class SyntheticFilteredScorer(FilteredScorer):
+    def _score(self, method_caller, estimator, X, y_true, sample_weight=None):
+        if issubclass(type(estimator.steps[0][-1]), BaseSampler):
+            gen = estimator.steps[0][-1]
+            X_sam, y_sam = gen.resample(X, y_true)
+            return super()._score(method_caller, estimator, X_sam, y_sam, sample_weight)
+        else:
+            return np.nan
+
+
 def _get_conf_matrix(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred)
 
@@ -136,7 +147,7 @@ def group_size(y_true, y_pred):
     return len(y_true)
 
 
-def make_fairness_metrics(X, sensitive_attributes):
+def make_fairness_metrics(X, sensitive_attributes, use_synthetic=False):
     """
     Create fairness metrics for a given dataset.
 
@@ -173,15 +184,29 @@ def make_fairness_metrics(X, sensitive_attributes):
             # Set up metric for the disadvantaged + advantaged group
             for group, values in zip(["dis", "adv"], [dis_values, adv_values]):
                 group_metric_name = f"{metric_name}_{sensitive_attribute}_{group}"
-                metric = FilteredScorer(
-                    score_func,
-                    filter_feature_value=(sensitive_attribute, values),
-                )
+
+                if use_synthetic:
+                    metric = SyntheticFilteredScorer(
+                        score_func,
+                        filter_feature_value=(sensitive_attribute, values),
+                    )
+                    group_metric_name += "_synth"
+                else:
+                    metric = FilteredScorer(
+                        score_func,
+                        filter_feature_value=(sensitive_attribute, values),
+                    )
                 fairness_metrics[group_metric_name] = metric
 
-    metrics = {
-        metric_name: FilteredScorer(score_func)
-        for metric_name, score_func in metrics.items()
-    }
+    if use_synthetic:
+        metrics = {
+            f"{metric_name}_synth": SyntheticFilteredScorer(score_func)
+            for metric_name, score_func in metrics.items()
+        }
+    else:
+        metrics = {
+            metric_name: FilteredScorer(score_func)
+            for metric_name, score_func in metrics.items()
+        }
 
     return {**metrics, **fairness_metrics}
