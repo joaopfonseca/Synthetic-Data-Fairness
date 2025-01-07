@@ -92,8 +92,8 @@ class FilteredScorer(_Scorer):
 
 class SyntheticFilteredScorer(FilteredScorer):
     def _score(self, method_caller, estimator, X, y_true, sample_weight=None):
-        if issubclass(type(estimator.steps[0][-1]), BaseSampler):
-            gen = estimator.steps[0][-1]
+        if issubclass(type(estimator.estimator_.steps[0][-1]), BaseSampler):
+            gen = estimator.estimator_.steps[0][-1]
             X_sam, y_sam = gen.resample(X, y_true)
             return super()._score(method_caller, estimator, X_sam, y_sam, sample_weight)
         else:
