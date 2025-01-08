@@ -84,7 +84,7 @@ CONFIG = {
         (
             "CTGAN",
             SDVGenerator(model=CTGANSynthesizer),
-            {"model__epochs": [200, 2000]},
+            {"model__epochs": [2000, 20000]},
         ),
     ],
     "ENCODER": [
