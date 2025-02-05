@@ -125,7 +125,7 @@ class SynFairDatasets(Datasets):
         data.drop(columns=["Unnamed: 0"], inplace=True)
         data.rename(columns={"SeriousDlqin2yrs": "target"}, inplace=True)
         data.dropna(inplace=True)
-        data["age>60"] = (data["age"] > 60).astype(int)
+        # data["age>60"] = (data["age"] > 60).astype(int)
         data = data[
             (data["RevolvingUtilizationOfUnsecuredLines"] < 1.7)
             & (data["age"] >= 18)

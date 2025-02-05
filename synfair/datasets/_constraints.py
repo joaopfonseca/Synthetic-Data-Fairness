@@ -255,10 +255,6 @@ constraints = {
     ],
     "CREDIT": [
         {
-            "constraint_class": "IsAbove60",
-            "constraint_parameters": {"column_names": ["age", "age>60"]},
-        },
-        {
             "constraint_class": "Inequality",
             "constraint_parameters": {
                 "low_column_name": "NumberRealEstateLoansOrLines",
