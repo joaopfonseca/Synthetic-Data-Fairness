@@ -83,7 +83,7 @@ CONFIG = {
         (
             "TVAE",
             SDVGenerator(model=TVAESynthesizer),
-            {"model__epochs": [200, 2000]},
+            {"model__epochs": [2000, 20000]},
         ),
         (
             "CTGAN",
