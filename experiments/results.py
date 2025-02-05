@@ -25,7 +25,11 @@ from sklearn.model_selection import StratifiedKFold
 
 # from lightgbm import LGBMClassifier
 # from imblearn.over_sampling import SMOTENC
-from sdv.single_table import GaussianCopulaSynthesizer, TVAESynthesizer, CTGANSynthesizer
+from sdv.single_table import (
+    GaussianCopulaSynthesizer,
+    TVAESynthesizer,
+    CTGANSynthesizer,
+)
 
 # from mlresearch.synthetic_data import GeometricSMOTE
 from mlresearch.utils import check_pipelines
