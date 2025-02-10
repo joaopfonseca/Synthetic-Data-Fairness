@@ -28,7 +28,7 @@ from sklearn.model_selection import StratifiedKFold
 from sdv.single_table import (
     GaussianCopulaSynthesizer,
     TVAESynthesizer,
-    CTGANSynthesizer,
+    # CTGANSynthesizer,
 )
 
 # from mlresearch.synthetic_data import GeometricSMOTE
@@ -85,11 +85,11 @@ CONFIG = {
             SDVGenerator(model=TVAESynthesizer),
             {"model__epochs": [2000, 20000]},
         ),
-        (
-            "CTGAN",
-            SDVGenerator(model=CTGANSynthesizer),
-            {"model__epochs": [2000, 20000]},
-        ),
+        # (
+        #     "CTGAN",
+        #     SDVGenerator(model=CTGANSynthesizer),
+        #     {"model__epochs": [2000, 20000]},
+        # ),
     ],
     "ENCODER": [
         (
