@@ -306,7 +306,7 @@ for dataset_name in DATASET_NAMES:
     pipelines_ = set_pipeline_parameters(pipelines, best_params)
 
     # Set up parameters for varying number of rows
-    rows_perc = np.arange(0.1, 2.1, 0.1)
+    rows_perc = np.arange(0.5, 2.1, 0.1)
     rows_params = synthetic_size_parameters(pipelines_, rows_perc)
 
     #####################################################################################
