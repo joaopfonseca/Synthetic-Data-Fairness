@@ -71,8 +71,11 @@ class FilteredScorer(_Scorer):
                 else:
                     raise KeyError("Could not parse sensitive attributes.")
 
-            X = X[mask]
-            y_true = y_true[mask]
+            if mask.sum() > 0:
+                X = X[mask]
+                y_true = y_true[mask]
+            else:
+                return np.nan
 
         y_pred = estimator.predict(X)
 
