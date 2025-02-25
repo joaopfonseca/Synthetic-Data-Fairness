@@ -1,0 +1,6 @@
+,,LR,KNN,DT,RF
+0,NONE,nan,nan,nan,nan
+1,GC,nan,0.283,0.410,nan
+2,CONST\_GC,nan,inf,nan,nan
+3,TVAE,nan,nan,nan,nan
+4,CONST\_TVAE,nan,nan,nan,nan

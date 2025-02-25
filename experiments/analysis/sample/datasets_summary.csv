@@ -1,0 +1,7 @@
+Dataset name,Feats.,Obs.,Min. Obs.,Non-metric,Const.,SA
+DIABETES,17,905,263,14,7,Gender
+GERMAN CREDIT,20,1000,300,16,9,Attribute9
+LAW SCHOOL,11,20512,1043,6,12,"race, male"
+BANK,16,49463,5762,10,12,age
+CARDIO,11,68623,33949,7,11,gender
+CREDIT,11,117999,7881,1,11,age

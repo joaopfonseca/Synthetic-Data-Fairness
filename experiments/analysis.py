@@ -6,6 +6,7 @@ from itertools import product
 import yaml
 
 # Data
+import numpy as np
 import pandas as pd
 from mlresearch.utils import set_matplotlib_style
 from mlresearch.latex import export_longtable, format_table
@@ -27,8 +28,8 @@ DATASET_NAMES = [
     "CREDIT",
     # "TRAVELTIME",
 ]
-RESULTS_PATH = join(dirname(__file__), "results")
-ANALYSIS_PATH = join(dirname(__file__), "analysis")
+RESULTS_PATH = join(dirname(__file__), "results", "sample")
+ANALYSIS_PATH = join(dirname(__file__), "analysis", "sample")
 
 
 def load_model_search_results(
@@ -97,7 +98,7 @@ def load_model_search_results(
         overall_results = results[["Dataset", "param_est_name", *metrics_cols]].copy()
         overall_results["Feature"] = "overall"
         overall_results.set_index(["Dataset", "param_est_name"], inplace=True)
-        results = pd.concat([overall_results, *sensitive_results])
+        results = pd.concat([overall_results, *sensitive_results], axis=0)
 
         all_results.append(results)
 
@@ -272,36 +273,168 @@ def query_results(df, dataset, feature, metric):
     return df_res.pivot(index="Generator", columns="Classifier", values=metric)
 
 
-def make_boxplots_results(metric, results_path, sensitive_attributes):
+def make_boxplots_results(
+    metric, results_path, sensitive_attributes, validate_real=True
+):
     df_param = load_model_search_results(results_path, get_splits=True)
+    synth_mask = df_param.columns.str.endswith("_synth")
+    if validate_real:
+        df_param = df_param.loc[:, ~synth_mask]
+    else:
+        df_param = df_param.loc[:, synth_mask]
     sensitive_attributes = deepcopy(sensitive_attributes)
     dataset_names = df_param["Dataset"].unique()
     for name in dataset_names:
         df = df_param[df_param["Dataset"] == name]
-        # metrics_cols = df.columns[df.columns.map(lambda x: x[0].isnumeric())]
-        # metrics_cols = metrics_cols.map(lambda x: "_".join(x.split("_")[1:])).unique()
-        # metrics = [f"{metric}_adv", f"{metric}_dis"]
+
         attrs = df["Feature"].unique()
         attrs = attrs[attrs != "overall"]
         for attr in attrs:
             df_ = (
-                df[df["Feature"] == attr]
+                df[df["Feature"].isin([attr, "overall"])]
                 .set_index("Model_Name")[df.columns[df.columns.str.contains(metric)]]
                 .drop(columns=f"mean_{metric}", errors="ignore")
                 .T
             )
-            df_ = df_.loc[~df_.index.str.endswith(metric)]
+            # df_ = df_.loc[~df_.index.str.endswith(metric)]
             df_["fold"] = df_.index.map(lambda x: x.split("_")[0])
-            df_["group"] = df_.index.map(lambda x: x.split("_")[-1])
+            df_["group"] = df_.index.map(
+                lambda x: x.split("_")[-1]
+            )
+            df_["group"] = df_["group"].map(
+                {metric: "overall", "dis": "disadvantaged", "adv": "advantaged"}
+            )
             df_ = df_.melt(["group", "fold"]).rename(columns={"value": metric})
 
-            fig, ax = plt.subplots(1, 1)
-            sns.boxplot(df_, x=metric, y="Model_Name", hue="group", ax=ax)
+            # Sort results
+            df_["sortby"] = df_["Model_Name"].map(lambda x: x.split("_")[-1])
+            df_ = df_.sort_values(["sortby", "Model_Name"]).drop(columns="sortby")
+
+            # "Gen", "Clf", "IG",
+            df_["IG"] = df_["Model_Name"].apply(
+                lambda x: x.startswith("CONST_")
+            )
+            df_["Gen"] = df_["Model_Name"].apply(
+                lambda x: x.split("_")[-1].split("|")[0]
+            )
+            df_["Clf"] = df_["Model_Name"].apply(lambda x: x.split("|")[-1])
+            df_.drop(columns=["Model_Name"], inplace=True)
+
+            df_ = df_[(df_["Clf"] != "CONSTANT")]  # & (df_["Gen"] != "NONE")]
+            df_["Clf"] = df_["Gen"] + " + " + df_["Clf"]
+
+            fig, axes = plt.subplots(1, 3, sharey=True)
+            plt.subplots_adjust(wspace=0)
+            for ax, group_name in zip(axes.flatten(), df_["group"].unique()):
+                sns.boxplot(
+                    df_[df_["group"] == group_name],
+                    y=metric,
+                    x="Clf",
+                    hue="IG",
+                    ax=ax
+                )
+                ax.set_xlabel(group_name)
+                ax.set_xticks(
+                    ax.get_xticks(),
+                    ax.get_xticklabels(),
+                    rotation=45,
+                    ha='right'
+                )
+            # fig.suptitle(name)
+
             plt.savefig(
                 join(ANALYSIS_PATH, f"boxplots_{name}_{metric}_{attr}"),
                 bbox_inches="tight",
                 transparent=False,
             )
+
+
+def make_results_table(
+    results_path, sensitive_attributes, metric="f1", validate_real=True
+):
+    sensitive_attributes = deepcopy(sensitive_attributes)
+    sensitive_attributes = {k: v[0] for k, v in sensitive_attributes.items()}
+
+    df_param = load_model_search_results(results_path, get_splits=False).copy()
+    df_param.set_index(["Dataset", "Model_Name", "Feature"], inplace=True)
+    synth_mask = df_param.columns.str.endswith("_synth")
+    if validate_real:
+        df_param = df_param.loc[:, ~synth_mask]
+    else:
+        df_param = df_param.loc[:, synth_mask]
+
+    df_param.reset_index(inplace=True)
+    df_param = df_param.loc[
+        df_param["Feature"].isin(list(sensitive_attributes.values())+["overall"])
+    ].drop(columns=["Feature"])
+    df_param = df_param.groupby(["Dataset", "Model_Name"]).mean().reset_index()
+    df_param = df_param.melt(["Dataset", "Model_Name"])
+    df_param["IG"] = df_param["Model_Name"].apply(
+        lambda x: "Yes" if x.startswith("CONST_") else "No"
+    )
+    df_param["Gen"] = df_param["Model_Name"].apply(
+        lambda x: x.split("_")[-1].split("|")[0]
+    )
+    df_param["Clf"] = df_param["Model_Name"].apply(lambda x: x.split("|")[-1])
+    df_param.drop(columns=["Model_Name"], inplace=True)
+
+    # Get metric
+    df_param = df_param[df_param["variable"].str.startswith(metric)]
+    df_param["variable"] = df_param["variable"].apply(
+        lambda x: "ovr" if x == metric else x.split("_")[-1]
+    )
+    df_param = (
+        df_param
+        .sort_values(["Dataset", "Gen", "Clf", "IG", "variable"])
+        .pivot(
+            columns=["Dataset", "variable"], index=["Gen", "Clf", "IG"], values="value"
+        )
+    )
+    return df_param
+
+
+def get_performance_differences_plot(
+    results_path, sensitive_attributes, metric="f1", validate_real=True
+):
+    df_param = make_results_table(
+        results_path, sensitive_attributes, metric, validate_real
+    )
+
+    # No IG - With IG
+    def _constraints_difference(_df):
+        _df["IG"] = 0
+        if _df.shape[0] == 2:
+            return _df.iloc[0] - _df.iloc[1]
+        else:
+            return _df.iloc[0]
+
+    df_diff_all = (
+        df_param
+        .reset_index()
+        .groupby(["Gen", "Clf"])
+        .apply(_constraints_difference)
+        .drop(columns="IG")
+    )
+    for dataset_name in dataset_names:
+        df_diff = df_diff_all.copy()[dataset_name].reset_index()
+        df_diff = df_diff[(df_diff["Gen"] != "NONE") & (df_diff["Clf"] != "CONSTANT")]
+        df_diff.rename(
+            columns={"adv": "advantaged", "dis": "disadvantaged", "ovr": "overall"},
+            inplace=True
+        )
+
+        fig, axes = plt.subplots(1, 2, sharey=True)
+        plt.subplots_adjust(wspace=0)
+        for ax, gen_name in zip(axes.flatten(), df_diff["Gen"].unique()):
+            df_diff[df_diff["Gen"] == gen_name].set_index("Clf").plot.bar(ax=ax)
+            ax.set_xlabel(gen_name)
+        # fig.suptitle(dataset_name)
+
+        plt.savefig(
+            join(ANALYSIS_PATH, f"perfdiff_{dataset_name}_{metric}"),
+            bbox_inches="tight",
+            transparent=False,
+        )
 
 
 if __name__ == "__main__":
@@ -331,6 +464,7 @@ if __name__ == "__main__":
         label="tab:datasets-summary",
         index=False,
     )
+    summary.to_csv(join(ANALYSIS_PATH, "datasets_summary.csv"))
 
     # EDA: Histogram with % positive / negative per class
     make_target_barchart(datasets, sensitive_attrs)
@@ -340,26 +474,33 @@ if __name__ == "__main__":
 
     for metric in metric_names:
         make_boxplots_results(metric, RESULTS_PATH, sensitive_attrs)
-
-    # Overall F1 performance
-    for dataset_name in dataset_names:
-        f1_scores = query_results(df_param, dataset_name, "overall", "f1")
-        f1_scores = f1_scores.map(lambda el: "{0:.3f}".format(el))
-        f1_scores = format_table(
-            f1_scores,
-            generator_order,
-            classifier_order,
+        get_performance_differences_plot(
+            RESULTS_PATH, sensitive_attrs, metric=metric, validate_real=True
         )
-        f1_scores.index = f1_scores.index.str.replace("_", r"\_")
-        f1_scores.reset_index(inplace=True, names="")
 
-        export_longtable(
-            f1_scores,
-            join(ANALYSIS_PATH, f"overall_f1_{dataset_name}.tex"),
-            caption=f"F1 scores for {dataset_name.replace('_', ' ')}.",
-            label=f"tab:f1-{dataset_name}",
-            index=False,
-        )
+    # Overall metric performance
+    for metric in metric_names:
+        for dataset_name in dataset_names:
+            metric_scores = query_results(df_param, dataset_name, "overall", metric)
+            metric_scores = metric_scores.map(lambda el: "{0:.3f}".format(el))
+            metric_scores = format_table(
+                metric_scores,
+                generator_order,
+                classifier_order,
+            )
+            metric_scores.index = metric_scores.index.str.replace("_", r"\_")
+            metric_scores.reset_index(inplace=True, names="")
+
+            export_longtable(
+                metric_scores,
+                join(ANALYSIS_PATH, f"overall_{metric}_{dataset_name}.tex"),
+                caption=f"F1 scores for {dataset_name.replace('_', ' ')}.",
+                label=f"tab:f1-{dataset_name}",
+                index=False,
+            )
+            metric_scores.to_csv(
+                join(ANALYSIS_PATH, f"overall_{metric}_{dataset_name}.csv")
+            )
 
     # diparities for FNR FPR F1 ACC SELECTION RATE AND PPV
     # per model class do constrained vs unconstrained
@@ -396,4 +537,10 @@ if __name__ == "__main__":
                 ),
                 label=f"tab:disp-{dataset_name}-{feature}-{metric_name}",
                 index=False,
+            )
+            metric_disp.to_csv(
+                join(
+                    ANALYSIS_PATH,
+                    f"metric_disp_{dataset_name}_{feature}_{metric_name}.csv",
+                )
             )
