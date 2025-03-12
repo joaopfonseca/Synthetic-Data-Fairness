@@ -278,27 +278,64 @@ for dataset_name in DATASET_NAMES:
 
     #####################################################################################
     # RQ1
-    # Check if results already exist
+
+    # Splite parameters and pipelines into different parts (larger dataset experiments
+    # time out if run all at once)
+    parts = []
+    params
+    for pipeline in pipelines:
+        pipeline_name = pipeline[0]
+        params_subset = [
+            param
+            for param in params
+            if param["est_name"][0] == pipeline_name
+        ]
+        parts.append(([pipeline], params_subset))
+
+    for part in parts:
+        pipeline_name = part[0][0][0]
+
+        # Check if results already exist
+        filename = join(
+            RESULTS_PATH,
+            "intermediate",
+            f"param_tuning_{dataset_name}_{pipeline_name}.pkl"
+        )
+        if not isfile(filename):
+            # Run parameter tuning
+            experiment = ModelSearchCV(
+                estimators=pipelines,
+                param_grids=params,
+                scoring=scoring,
+                n_jobs=CONFIG["N_JOBS"],
+                cv=StratifiedKFold(
+                    n_splits=CONFIG["N_SPLITS"],
+                    shuffle=True,
+                    random_state=CONFIG["RANDOM_STATE"],
+                ),
+                verbose=1,
+                return_train_score=True,
+                refit=False,
+            ).fit(df.drop(columns=["target"]), df["target"])
+
+            # Save results
+            pd.DataFrame(experiment.cv_results_).to_pickle(filename)
+
+    # Concatenate results
     filename = join(RESULTS_PATH, f"param_tuning_{dataset_name}.pkl")
     if not isfile(filename):
-        # Run parameter tuning
-        experiment = ModelSearchCV(
-            estimators=pipelines,
-            param_grids=params,
-            scoring=scoring,
-            n_jobs=CONFIG["N_JOBS"],
-            cv=StratifiedKFold(
-                n_splits=CONFIG["N_SPLITS"],
-                shuffle=True,
-                random_state=CONFIG["RANDOM_STATE"],
-            ),
-            verbose=1,
-            return_train_score=True,
-            refit=False,
-        ).fit(df.drop(columns=["target"]), df["target"])
+        results = []
+        for part in parts:
+            pipeline_name = part[0][0][0]
+            filename = join(
+                RESULTS_PATH,
+                "intermediate",
+                f"param_tuning_{dataset_name}_{pipeline_name}.pkl"
+            )
+            df_res_ = pickle.load(open(filename, "rb"))
+            results.append(df_res_)
 
-        # Save results
-        pd.DataFrame(experiment.cv_results_).to_pickle(filename)
+        pd.concat(results).to_pickle(filename)
 
     # Read results and set up best models
     df_results = pickle.load(open(filename, "rb"))
