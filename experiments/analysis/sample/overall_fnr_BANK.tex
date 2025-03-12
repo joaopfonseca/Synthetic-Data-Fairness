@@ -1,23 +1,15 @@
-\begin{longtable}{ccccc}
-\caption{F1 scores for BANK.} \label{tab:f1-BANK} \\
+\begin{table}
+\caption{F1 scores for BANK.}
+\label{tab:f1-BANK}
+\begin{tabular}{ccccc}
 \toprule
  & LR & KNN & DT & RF \\
 \midrule
-\endfirsthead
-\caption[]{F1 scores for BANK.} \\
-\toprule
- & LR & KNN & DT & RF \\
-\midrule
-\endhead
-\midrule
-\multicolumn{5}{r}{Continued on next page} \\
-\midrule
-\endfoot
-\bottomrule
-\endlastfoot
 NONE & 0.198 & 0.251 & 0.190 & 0.143 \\
 GC & 0.333 & 0.388 & 0.344 & 0.323 \\
 CONST\_GC & 0.304 & 0.361 & 0.355 & 0.335 \\
 TVAE & 0.184 & 0.271 & 0.234 & 0.166 \\
 CONST\_TVAE & 0.173 & 0.293 & 0.202 & 0.188 \\
-\end{longtable}
+\bottomrule
+\end{tabular}
+\end{table}

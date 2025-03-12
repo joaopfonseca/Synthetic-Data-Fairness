@@ -1,23 +1,15 @@
-\begin{longtable}{ccccc}
-\caption{Disparities for metric fnr in feature age for dataset Bank.} \label{tab:disp-BANK-age-fnr} \\
+\begin{table}
+\caption{Disparities for metric fnr in feature age for dataset Bank.}
+\label{tab:disp-BANK-age-fnr}
+\begin{tabular}{ccccc}
 \toprule
  & LR & KNN & DT & RF \\
 \midrule
-\endfirsthead
-\caption[]{Disparities for metric fnr in feature age for dataset Bank.} \\
-\toprule
- & LR & KNN & DT & RF \\
-\midrule
-\endhead
-\midrule
-\multicolumn{5}{r}{Continued on next page} \\
-\midrule
-\endfoot
-\bottomrule
-\endlastfoot
 NONE & 0.929 & 2.000 & 0.868 & 2.096 \\
 GC & 0.719 & 0.772 & 0.812 & 0.782 \\
 CONST\_GC & 0.611 & 0.818 & 0.874 & 0.685 \\
 TVAE & 0.994 & 1.198 & 0.868 & 1.005 \\
 CONST\_TVAE & 1.066 & 1.394 & 1.093 & 0.985 \\
-\end{longtable}
+\bottomrule
+\end{tabular}
+\end{table}

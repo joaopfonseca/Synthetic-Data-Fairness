@@ -1,23 +1,15 @@
-\begin{longtable}{ccccc}
-\caption{F1 scores for DIABETES.} \label{tab:f1-DIABETES} \\
+\begin{table}
+\caption{F1 scores for DIABETES.}
+\label{tab:f1-DIABETES}
+\begin{tabular}{ccccc}
 \toprule
  & LR & KNN & DT & RF \\
 \midrule
-\endfirsthead
-\caption[]{F1 scores for DIABETES.} \\
-\toprule
- & LR & KNN & DT & RF \\
-\midrule
-\endhead
-\midrule
-\multicolumn{5}{r}{Continued on next page} \\
-\midrule
-\endfoot
-\bottomrule
-\endlastfoot
 NONE & 0.810 & 0.905 & 0.926 & 0.925 \\
 GC & 0.609 & 0.487 & 0.528 & 0.520 \\
 CONST\_GC & 0.559 & 0.418 & 0.492 & 0.543 \\
 TVAE & 0.770 & 0.746 & 0.750 & 0.807 \\
 CONST\_TVAE & 0.775 & 0.718 & 0.729 & 0.812 \\
-\end{longtable}
+\bottomrule
+\end{tabular}
+\end{table}
