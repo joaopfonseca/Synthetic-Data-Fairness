@@ -6,10 +6,10 @@ from itertools import product
 import yaml
 
 # Data
-import numpy as np
+# import numpy as np
 import pandas as pd
 from mlresearch.utils import set_matplotlib_style
-from mlresearch.latex import export_longtable, format_table
+from mlresearch.latex import export_table, format_table
 from synfair.datasets import SynFairDatasets
 
 # Viz
@@ -457,12 +457,13 @@ if __name__ == "__main__":
         ).items()
     }
     summary = make_datasets_summary(datasets, sensitive_attrs)
-    export_longtable(
+    export_table(
         summary.reset_index(),
         join(ANALYSIS_PATH, "datasets_summary.tex"),
         caption="Summary of all datasets used in this study.",
         label="tab:datasets-summary",
         index=False,
+        longtable=False
     )
     summary.to_csv(join(ANALYSIS_PATH, "datasets_summary.csv"))
 
@@ -491,12 +492,13 @@ if __name__ == "__main__":
             metric_scores.index = metric_scores.index.str.replace("_", r"\_")
             metric_scores.reset_index(inplace=True, names="")
 
-            export_longtable(
+            export_table(
                 metric_scores,
                 join(ANALYSIS_PATH, f"overall_{metric}_{dataset_name}.tex"),
                 caption=f"F1 scores for {dataset_name.replace('_', ' ')}.",
                 label=f"tab:f1-{dataset_name}",
                 index=False,
+                longtable=False
             )
             metric_scores.to_csv(
                 join(ANALYSIS_PATH, f"overall_{metric}_{dataset_name}.csv")
@@ -524,7 +526,7 @@ if __name__ == "__main__":
             )
             metric_disp.index = metric_disp.index.str.replace("_", r"\_")
             metric_disp.reset_index(inplace=True, names="")
-            export_longtable(
+            export_table(
                 metric_disp,
                 join(
                     ANALYSIS_PATH,
@@ -537,6 +539,7 @@ if __name__ == "__main__":
                 ),
                 label=f"tab:disp-{dataset_name}-{feature}-{metric_name}",
                 index=False,
+                longtable=False
             )
             metric_disp.to_csv(
                 join(
