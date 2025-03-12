@@ -37,9 +37,9 @@ def credit_default_has_credit(column_names, data):
 
     Reasoning: Someone with credit in default must have some type of loan/line of credit.
     """
-    default_credit = column_names[0]
-    balance = column_names[1]
-    credit_vars = column_names[2:]
+    default_credit = column_names[0]  # Default
+    balance = column_names[1]  # Balance
+    credit_vars = column_names[2:]  # Housing + Loan
 
     all_credit_features = [data[balance] < 0]
     for var in credit_vars:
