@@ -57,6 +57,7 @@ if dataset_name != "OVERALL":
         # Overview
         ##########
         st.write(f"Sensitive attributes: {', '.join(SENSITIVE_ATTRS[dataset_name])}")
+        st.image(join(ANALYSIS_PATH, f"synthsize_line_{dataset_name}_{metric}_TVAE.png"))
         col1, col2 = st.columns(2)
         with col1:
             attr_ = attr if attr != "age" else "age>60"

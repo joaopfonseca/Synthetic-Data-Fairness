@@ -279,10 +279,9 @@ for dataset_name in DATASET_NAMES:
     #####################################################################################
     # RQ1
 
-    # Splite parameters and pipelines into different parts (larger dataset experiments
+    # Split parameters and pipelines into different parts (larger dataset experiments
     # time out if run all at once)
     parts = []
-    params
     for pipeline in pipelines:
         pipeline_name = pipeline[0]
         params_subset = [
