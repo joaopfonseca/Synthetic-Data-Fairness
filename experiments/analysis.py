@@ -33,12 +33,13 @@ ANALYSIS_PATH = join(dirname(__file__), "analysis", "sample")
 
 
 def load_model_search_results(
-    results_path, reference_metric="mean_test_f1", get_splits=False
+    results_path, reference_metric="mean_test_f1",
+    get_splits=False, file_prefix="param_tuning", get_param=None
 ):
     results_files = [
         file
         for file in os.listdir(results_path)
-        if file.endswith(".pkl") and file.startswith("param_tuning")
+        if file.endswith(".pkl") and file.startswith(file_prefix)
     ]
 
     prefix_metric = "split" if get_splits else "mean_test_"
@@ -57,9 +58,19 @@ def load_model_search_results(
         # exclude train fold metrics
         all_metrics = all_metrics[~all_metrics.str.contains("train")]
 
+        if get_param is not None:
+            results[get_param] = results["params"].apply(
+                lambda params: [
+                    params[key] for key in params.keys() if key.endswith(get_param)
+                ]
+            ).apply(lambda param_val: param_val[0] if len(param_val) else None)
+            groupcols = ["param_est_name", get_param]
+        else:
+            groupcols = ["param_est_name"]
+
         results = (
-            results[["param_est_name", *all_metrics]]
-            .groupby("param_est_name")
+            results[[*groupcols, *all_metrics]]
+            .groupby(groupcols)
             .apply(
                 lambda df: df.loc[df[reference_metric].idxmax()],
             )
@@ -188,9 +199,11 @@ def make_target_barchart(datasets, sensitive_attributes):
 
             (values / values.sum(axis=0)).T.plot.bar(stacked=True)
             plt.savefig(join(ANALYSIS_PATH, f"barchart_{name}_{attr}_target"))
+            plt.close()
 
             (values.T / values.sum(axis=1)).T.plot.bar(stacked=True)
             plt.savefig(join(ANALYSIS_PATH, f"barchart_{name}_target_{attr}"))
+            plt.close()
 
 
 def make_target_sankey_charts(datasets, sensitive_attributes):
@@ -207,7 +220,7 @@ def make_target_sankey_charts(datasets, sensitive_attributes):
         all_values = []
         for i in range(1, len(attrs)):
             values = (
-                df.groupby(attrs[i - 1 : i + 1]).size().to_frame("value").reset_index()
+                df.groupby(attrs[i - 1: i + 1]).size().to_frame("value").reset_index()
             )
             for col in values.columns[:-1]:
                 values[col] = col.title() + ": " + values[col].astype(str)
@@ -347,16 +360,25 @@ def make_boxplots_results(
                 bbox_inches="tight",
                 transparent=False,
             )
+            plt.close()
 
 
 def make_results_table(
-    results_path, sensitive_attributes, metric="f1", validate_real=True
+    results_path, sensitive_attributes, metric="f1", validate_real=True,
+    file_prefix="param_tuning", get_param=None
 ):
     sensitive_attributes = deepcopy(sensitive_attributes)
     sensitive_attributes = {k: v[0] for k, v in sensitive_attributes.items()}
 
-    df_param = load_model_search_results(results_path, get_splits=False).copy()
-    df_param.set_index(["Dataset", "Model_Name", "Feature"], inplace=True)
+    df_param = load_model_search_results(
+        results_path, get_splits=False, file_prefix=file_prefix, get_param=get_param
+    ).copy()
+
+    groupcols = ["Dataset", "Model_Name"]
+    if get_param is not None:
+        groupcols.append(get_param)
+
+    df_param.set_index([*groupcols, "Feature"], inplace=True)
     synth_mask = df_param.columns.str.endswith("_synth")
     if validate_real:
         df_param = df_param.loc[:, ~synth_mask]
@@ -367,8 +389,8 @@ def make_results_table(
     df_param = df_param.loc[
         df_param["Feature"].isin(list(sensitive_attributes.values())+["overall"])
     ].drop(columns=["Feature"])
-    df_param = df_param.groupby(["Dataset", "Model_Name"]).mean().reset_index()
-    df_param = df_param.melt(["Dataset", "Model_Name"])
+    df_param = df_param.groupby(groupcols).mean().reset_index()
+    df_param = df_param.melt(groupcols)
     df_param["IG"] = df_param["Model_Name"].apply(
         lambda x: "Yes" if x.startswith("CONST_") else "No"
     )
@@ -383,11 +405,14 @@ def make_results_table(
     df_param["variable"] = df_param["variable"].apply(
         lambda x: "ovr" if x == metric else x.split("_")[-1]
     )
+    index_cols = ["Gen", "Clf", "IG"]
+    if get_param is not None:
+        index_cols.append(get_param)
     df_param = (
         df_param
         .sort_values(["Dataset", "Gen", "Clf", "IG", "variable"])
         .pivot(
-            columns=["Dataset", "variable"], index=["Gen", "Clf", "IG"], values="value"
+            columns=["Dataset", "variable"], index=index_cols, values="value"
         )
     )
     return df_param
@@ -435,6 +460,40 @@ def get_performance_differences_plot(
             bbox_inches="tight",
             transparent=False,
         )
+        plt.close()
+
+
+def get_param_tuning_analysis(
+    results_path, sensitive_attributes, metric="f1", generator="all"
+):
+    df_results = make_results_table(
+        results_path,
+        sensitive_attributes,
+        metric=metric,
+        file_prefix="synth_size",
+        get_param="n_rows"
+    )
+    df_results = df_results.xs('ovr', axis=1, level=1, drop_level=True)
+    for dataset_name in df_results.columns:
+        df = df_results[dataset_name].to_frame().reset_index()
+        df = df[df["Clf"] != "CONSTANT"]
+
+        if generator == "all":
+            hue_var = "Gen+Clf"
+            df[hue_var] = df["Gen"] + "+" + df["Clf"]
+        else:
+            hue_var = "Clf"
+            df = df[df["Gen"] == generator]
+
+        sns.lineplot(df, x="n_rows", y=dataset_name, hue=hue_var, style="IG")
+        plt.ylabel(metric.upper())
+        plt.xlabel(r"# Tuples (% of original dataset)")
+        plt.savefig(
+            join(ANALYSIS_PATH, f"synthsize_line_{dataset_name}_{metric}_{generator}"),
+            bbox_inches="tight",
+            transparent=False,
+        )
+        plt.close()
 
 
 if __name__ == "__main__":
@@ -478,6 +537,7 @@ if __name__ == "__main__":
         get_performance_differences_plot(
             RESULTS_PATH, sensitive_attrs, metric=metric, validate_real=True
         )
+        plt.close()
 
     # Overall metric performance
     for metric in metric_names:
@@ -547,3 +607,9 @@ if __name__ == "__main__":
                     f"metric_disp_{dataset_name}_{feature}_{metric_name}.csv",
                 )
             )
+
+    # Impact of Synthetic Data Size on performance
+    for metric in metric_names:
+        get_param_tuning_analysis(
+            RESULTS_PATH, sensitive_attrs, metric=metric, generator="TVAE"
+        )
