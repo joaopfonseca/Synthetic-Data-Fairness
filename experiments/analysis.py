@@ -323,8 +323,8 @@ def make_boxplots_results(
             df_["sortby"] = df_["Model_Name"].map(lambda x: x.split("_")[-1])
             df_ = df_.sort_values(["sortby", "Model_Name"]).drop(columns="sortby")
 
-            # "Gen", "Clf", "IG",
-            df_["IG"] = df_["Model_Name"].apply(
+            # "Gen", "Clf", "IC",
+            df_["IC"] = df_["Model_Name"].apply(
                 lambda x: x.startswith("CONST_")
             )
             df_["Gen"] = df_["Model_Name"].apply(
@@ -343,7 +343,7 @@ def make_boxplots_results(
                     df_[df_["group"] == group_name],
                     y=metric,
                     x="Clf",
-                    hue="IG",
+                    hue="IC",
                     ax=ax
                 )
                 ax.set_xlabel(group_name)
@@ -391,7 +391,7 @@ def make_results_table(
     ].drop(columns=["Feature"])
     df_param = df_param.groupby(groupcols).mean().reset_index()
     df_param = df_param.melt(groupcols)
-    df_param["IG"] = df_param["Model_Name"].apply(
+    df_param["IC"] = df_param["Model_Name"].apply(
         lambda x: "Yes" if x.startswith("CONST_") else "No"
     )
     df_param["Gen"] = df_param["Model_Name"].apply(
@@ -405,12 +405,12 @@ def make_results_table(
     df_param["variable"] = df_param["variable"].apply(
         lambda x: "ovr" if x == metric else x.split("_")[-1]
     )
-    index_cols = ["Gen", "Clf", "IG"]
+    index_cols = ["Gen", "Clf", "IC"]
     if get_param is not None:
         index_cols.append(get_param)
     df_param = (
         df_param
-        .sort_values(["Dataset", "Gen", "Clf", "IG", "variable"])
+        .sort_values(["Dataset", "Gen", "Clf", "IC", "variable"])
         .pivot(
             columns=["Dataset", "variable"], index=index_cols, values="value"
         )
@@ -425,9 +425,9 @@ def get_performance_differences_plot(
         results_path, sensitive_attributes, metric, validate_real
     )
 
-    # No IG - With IG
+    # No IC - With IC
     def _constraints_difference(_df):
-        _df["IG"] = 0
+        _df["IC"] = 0
         if _df.shape[0] == 2:
             return _df.iloc[0] - _df.iloc[1]
         else:
@@ -438,7 +438,7 @@ def get_performance_differences_plot(
         .reset_index()
         .groupby(["Gen", "Clf"])
         .apply(_constraints_difference)
-        .drop(columns="IG")
+        .drop(columns="IC")
     )
     for dataset_name in dataset_names:
         df_diff = df_diff_all.copy()[dataset_name].reset_index()
@@ -485,7 +485,7 @@ def get_param_tuning_analysis(
             hue_var = "Clf"
             df = df[df["Gen"] == generator]
 
-        sns.lineplot(df, x="n_rows", y=dataset_name, hue=hue_var, style="IG")
+        sns.lineplot(df, x="n_rows", y=dataset_name, hue=hue_var, style="IC")
         plt.ylabel(metric.upper())
         plt.xlabel(r"# Tuples (% of original dataset)")
         plt.savefig(
