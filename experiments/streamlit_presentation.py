@@ -150,7 +150,7 @@ elif dataset_name == "SYNTHETIC":
         st.image(
             join(SYNTH_PATH, "waterfall_uncertain_pred_ic.png"),
         )
-    st.write("Feature contributions over an observation with high uncertainty.")
+    st.write("Feature contributions over an observation with high uncertainty (left: no IC, right: with IC).")
     st.image(join(SYNTH_PATH, "contributions_sample.png"))
     st.write("Feature distributions per observation (sample of 200 observations).")
 else:
