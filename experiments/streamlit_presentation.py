@@ -6,6 +6,7 @@ import streamlit as st
 st.set_page_config(page_title="SynFair Analysis")
 
 DATASET_NAMES = [
+    "SYNTHETIC",
     "DIABETES",
     "GERMAN CREDIT",
     "LAW SCHOOL",
@@ -39,7 +40,7 @@ metric = st.sidebar.selectbox(
     "Metric", METRIC_NAMES, 2
 )
 
-if dataset_name != "OVERALL":
+if (dataset_name != "OVERALL") and dataset_name != "SYNTHETIC":
     attr = st.sidebar.selectbox(
         "Sensitive Attribute", SENSITIVE_ATTRS[dataset_name]
     )
@@ -50,7 +51,7 @@ if dataset_name != "OVERALL":
 
 
 st.write(f"# {dataset_name.title()}")
-if dataset_name != "OVERALL":
+if (dataset_name != "OVERALL") and dataset_name != "SYNTHETIC":
     # Individual analysis
     tab1, tab2 = st.tabs(["Overview", "Results"])
     with tab1:
@@ -117,6 +118,41 @@ if dataset_name != "OVERALL":
                     f"**{SENSITIVE_ATTRS[dataset_name][0]}**"
                 )
             )
+elif dataset_name == "SYNTHETIC":
+    SYNTH_PATH = join(dirname(__file__), "qualitative_analysis", "figures")
+
+    st.divider()
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image(
+            join(SYNTH_PATH, "overall_dist.png"),
+        )
+    with col2:
+        st.image(
+            join(SYNTH_PATH, "overall_dist_IC.png"),
+        )
+    st.write(
+        "Score distribution of a model trained over synthetic data, tested on real data."
+        " Left side: model trained without integrity constraints. Right side: model "
+        "trained with integrity constraints."
+    )
+    st.image(join(SYNTH_PATH, "scores_distribution_cat.png"))
+    st.write(
+        "Feature importance distributions with and without integrity constraints."
+    )
+    st.divider()
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image(
+            join(SYNTH_PATH, "waterfall_uncertain_pred.png"),
+        )
+    with col2:
+        st.image(
+            join(SYNTH_PATH, "waterfall_uncertain_pred_ic.png"),
+        )
+    st.write("Feature contributions over an observation with high uncertainty.")
+    st.image(join(SYNTH_PATH, "contributions_sample.png"))
+    st.write("Feature distributions per observation (sample of 200 observations).")
 else:
     # Overall analysis
     summary = pd.read_csv(
